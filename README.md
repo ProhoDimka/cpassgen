@@ -13,7 +13,7 @@ poetry install
 
 ## Usage
 
-Interactive prompts:
+Interactive prompts with advanced options:
 
 ```bash
 poetry run python -m app.main
@@ -27,8 +27,17 @@ Or pass arguments:
 poetry run python -m app.main \
   --username user1 \
   --resource example.com \
-  --secret mysecret
+  --secret mysecret \
+  --min-length 14 \
+  --max-length 18 \
+  --upper 3 \
+  --lower 4 \
+  --digits 3 \
+  --specials 2 \
+  --mask 1
 ```
+
+Without additional flags the CLI returns the legacy deterministic Base64 output to remain backward compatible.
 
 ## Commands
 
@@ -50,7 +59,7 @@ pytest tests/test_main.py
 ```
 app/           CLI source (main.py)
 tests/         unit tests
-pyproject.toml project manifest
+p.yproject.toml project manifest
 Makefile       shortcuts for fmt, lint, test
 ```
 
