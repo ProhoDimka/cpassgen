@@ -1,6 +1,34 @@
 # cpassgen
 
-Deterministic password generator CLI using SHA256 + URL-safe Base64.
+Deterministic password generator and profile manager for CLI workflows.
+
+`cpassgen` stores password profiles (username/resource + constraints) and generates the same password for the same input
+set every time.
+
+## What is new
+
+- Multi-command CLI: `create`, `set`, `get`
+- File-based profile repository with deterministic sharded layout
+- Constraint-driven password generation with stable pseudo-random expansion
+- Backward-compatible legacy mode for default constraints
+- Explicit validation and clear CLI errors (`exit code 1`)
+
+## How generation works
+
+`cpassgen` supports two deterministic methods:
+
+1. Legacy mode (backward compatibility)
+    - Input: `username:resource:secret`
+    - Pipeline: URL-safe Base64 -> SHA256 -> URL-safe Base64
+    - Triggered when profile constraints are default:
+        - `min_length=24`, `max_length=32`, `upper=0`, `lower=0`, `digits=0`, `specials=0`, `mask=0`
+
+2. Constraint mode (recommended)
+    - Input seed: `SHA256(username:resource:secret)`
+    - Seed is expanded by deterministic HMAC-SHA256 stream generator
+    - Password is built to satisfy quotas and range constraints:
+        - `min_length`, `max_length`, `upper`, `lower`, `digits`, `specials`, `mask`
+    - Character order is deterministically shuffled
 
 ## Installation
 
@@ -11,60 +39,107 @@ pip install poetry
 poetry install
 ```
 
-## Usage
+## Configuration
 
-Interactive prompts with advanced options:
+Required environment variable:
+
+- `PASS_GEN_GIT_PERSISTENCE_PATH` - directory where profiles are stored
+
+Optional environment variable:
+
+- `PASS_GEN_KEY_WORD` - secret for the `get` command (if set, prompt is skipped)
+
+Example:
 
 ```bash
-poetry run python -m app.main
-# or
-python app/main.py
+export PASS_GEN_GIT_PERSISTENCE_PATH="$HOME/.cpassgen"
+export PASS_GEN_KEY_WORD="my-secret"
 ```
 
-Or pass arguments:
+## CLI commands
+
+Run CLI:
 
 ```bash
-poetry run python -m app.main \
+poetry run python -m app.main --help
+```
+
+Create profile:
+
+```bash
+poetry run python -m app.main create \
+  --username user1 \
+  --resource example.com
+```
+
+Update existing profile constraints:
+
+```bash
+poetry run python -m app.main set \
   --username user1 \
   --resource example.com \
-  --secret mysecret \
-  --min-length 14 \
-  --max-length 18 \
-  --upper 3 \
+  --min-length 16 \
+  --max-length 20 \
+  --upper 2 \
   --lower 4 \
-  --digits 3 \
+  --digits 2 \
   --specials 2 \
   --mask 1
 ```
 
-Without additional flags the CLI returns the legacy deterministic Base64 output to remain backward compatible.
-
-## Commands
+Generate password from profile:
 
 ```bash
-make fmt        # isort, black
-make fmt_check  # check formatting
-make lint       # flake8
-make test       # pytest with coverage
+poetry run python -m app.main get \
+  --username user1 \
+  --resource example.com
 ```
 
-Run single test:
+Notes:
+
+- `create` fails if profile already exists
+- `set` fails if profile does not exist
+- `get` fails if profile does not exist
+- all failures are returned as human-readable `Error: ...` messages
+
+## Best practices for CLI password services
+
+- Keep one profile per real account identity (`username + resource`)
+- Use `set` to evolve constraints gradually instead of recreating profiles
+- Store secrets in environment variables or secure prompt input, not shell history
+- Keep persistence path in private local storage and back it up securely
+- Validate constraint changes in CI (`make lint`, `make test`) before sharing
+- Prefer deterministic generation for reproducible recovery workflows
+
+## Development commands
+
+```bash
+make fmt        # isort + black
+make fmt_check  # formatting check
+make lint       # flake8
+make test       # pytest + coverage
+```
+
+Run one test module:
 
 ```bash
 pytest tests/test_main.py
 ```
 
-## Project Structure
+## Project structure
 
-```
-app/           CLI source (main.py)
-tests/         unit tests
-p.yproject.toml project manifest
-Makefile       shortcuts for fmt, lint, test
+```text
+app/main.py         CLI entrypoint (Click group + commands)
+app/generator.py    deterministic password generation logic
+app/persistence.py  profile repository and filesystem layout
+app/seed_expander.py deterministic pseudo-random byte stream
+app/models.py       immutable domain models
+app/validators.py   constraints validation
+tests/              unit tests
+pyproject.toml      Poetry project manifest
+Makefile            dev shortcuts
 ```
 
 ## License
 
-Apache License 2.0
-
-See LICENSE for details.
+Apache License 2.0. See `LICENSE`.
