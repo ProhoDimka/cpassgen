@@ -1,5 +1,6 @@
 import pytest
-from app.generator import generate_password
+from app.generator import generate_password, generate_password_from_request
+from app.models import PasswordConstraints, PasswordGenerationRequest, PasswordProfile
 
 
 def test_generate_password_consistency_default():
@@ -47,3 +48,25 @@ def test_generate_password_invalid_constraints():
             min_length=5,
             max_length=4,
         )
+
+
+def test_generate_password_from_request_matches_api():
+    constraints = PasswordConstraints(14, 18, 2, 2, 1, 1, 0)
+    profile = PasswordProfile("userX", "resourceX", constraints)
+    request = PasswordGenerationRequest(profile, "secretX")
+
+    via_request = generate_password_from_request(request)
+    via_kwargs = generate_password(
+        "userX",
+        "resourceX",
+        "secretX",
+        min_length=14,
+        max_length=18,
+        upper=2,
+        lower=2,
+        digits=1,
+        specials=1,
+        mask=0,
+    )
+
+    assert via_request == via_kwargs
