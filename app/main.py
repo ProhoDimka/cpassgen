@@ -1,4 +1,5 @@
 import click
+
 from app.generator import generate_password
 
 
