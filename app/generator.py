@@ -6,15 +6,16 @@ import base64
 import hashlib
 from typing import List
 
+from app import models
 from app.seed_expander import SeedExpander
-from app.validators import PasswordConstraints, validate_constraints
+from app.validators import validate_constraints
 
 UPPER_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 LOWER_CHARS = "abcdefghijklmnopqrstuvwxyz"
 DIGIT_CHARS = "0123456789"
 SPECIAL_CHARS = "!@#$%^&*()-_=+[]{};:,.<>/?\\|\"'`~"
 
-DEFAULT_CONSTRAINTS = PasswordConstraints(
+DEFAULT_CONSTRAINTS = models.PasswordConstraints(
     min_length=24,
     max_length=32,
     upper=0,
@@ -74,7 +75,7 @@ def _generate_with_constraints(
     username: str,
     resource: str,
     secret: str,
-    constraints: PasswordConstraints,
+    constraints: models.PasswordConstraints,
 ) -> str:
     seed = _derive_seed(username, resource, secret)
     expander = SeedExpander(seed)
@@ -124,6 +125,20 @@ def _generate_with_constraints(
     return "".join(characters)
 
 
+def generate_password_from_request(
+    request: models.PasswordGenerationRequest,
+) -> str:
+    constraints = validate_constraints(request.profile.constraints)
+    username = request.profile.username
+    resource = request.profile.resource
+    secret = request.secret
+
+    if constraints == DEFAULT_CONSTRAINTS:
+        return _legacy_password(username, resource, secret)
+
+    return _generate_with_constraints(username, resource, secret, constraints)
+
+
 def generate_password(
     username: str,
     resource: str,
@@ -136,19 +151,21 @@ def generate_password(
     specials: int = 2,
     mask: int = 1,
 ) -> str:
-    constraints = validate_constraints(
-        PasswordConstraints(
-            min_length=min_length,
-            max_length=max_length,
-            upper=upper,
-            lower=lower,
-            digits=digits,
-            specials=specials,
-            mask=mask,
-        )
+    request = models.PasswordGenerationRequest(
+        profile=models.PasswordProfile(
+            username=username,
+            resource=resource,
+            constraints=models.PasswordConstraints(
+                min_length=min_length,
+                max_length=max_length,
+                upper=upper,
+                lower=lower,
+                digits=digits,
+                specials=specials,
+                mask=mask,
+            ),
+        ),
+        secret=secret,
     )
 
-    if constraints == DEFAULT_CONSTRAINTS:
-        return _legacy_password(username, resource, secret)
-
-    return _generate_with_constraints(username, resource, secret, constraints)
+    return generate_password_from_request(request)

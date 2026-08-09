@@ -1,6 +1,7 @@
 import click
 
-from app.generator import generate_password
+from app import models
+from app.generator import generate_password_from_request
 
 
 @click.command()
@@ -33,18 +34,23 @@ def generate(
 ):
     """Generate password based on given parameters."""
     try:
-        password = generate_password(
-            username,
-            resource,
-            secret,
-            min_length=min_length,
-            max_length=max_length,
-            upper=upper,
-            lower=lower,
-            digits=digits,
-            specials=specials,
-            mask=mask,
+        request = models.PasswordGenerationRequest(
+            profile=models.PasswordProfile(
+                username=username,
+                resource=resource,
+                constraints=models.PasswordConstraints(
+                    min_length=min_length,
+                    max_length=max_length,
+                    upper=upper,
+                    lower=lower,
+                    digits=digits,
+                    specials=specials,
+                    mask=mask,
+                ),
+            ),
+            secret=secret,
         )
+        password = generate_password_from_request(request)
     except ValueError as error:
         click.echo(f"Error: {error}")
         raise SystemExit(1) from error

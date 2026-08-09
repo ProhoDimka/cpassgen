@@ -1,17 +1,6 @@
 """Validation helpers for CLI arguments."""
 
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True)
-class PasswordConstraints:
-    min_length: int
-    max_length: int
-    upper: int
-    lower: int
-    digits: int
-    specials: int
-    mask: int
+from app.models import PasswordConstraints
 
 
 def validate_constraints(
