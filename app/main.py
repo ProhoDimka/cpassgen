@@ -12,11 +12,42 @@ from app.generator import generate_password
     prompt=True,
     hide_input=True,
 )
-def generate(username: str, resource: str, secret: str):
-    """
-    Generate password based on given parameters.
-    """
-    password = generate_password(username, resource, secret)
+@click.option("--min-length", type=int, default=12, show_default=True)
+@click.option("--max-length", type=int, default=16, show_default=True)
+@click.option("--upper", type=int, default=2, show_default=True)
+@click.option("--lower", type=int, default=2, show_default=True)
+@click.option("--digits", type=int, default=2, show_default=True)
+@click.option("--specials", type=int, default=2, show_default=True)
+@click.option("--mask", type=int, default=1, show_default=True)
+def generate(
+    username: str,
+    resource: str,
+    secret: str,
+    min_length: int,
+    max_length: int,
+    upper: int,
+    lower: int,
+    digits: int,
+    specials: int,
+    mask: int,
+):
+    """Generate password based on given parameters."""
+    try:
+        password = generate_password(
+            username,
+            resource,
+            secret,
+            min_length=min_length,
+            max_length=max_length,
+            upper=upper,
+            lower=lower,
+            digits=digits,
+            specials=specials,
+            mask=mask,
+        )
+    except ValueError as error:
+        click.echo(f"Error: {error}")
+        raise SystemExit(1) from error
     click.echo(password)
 
 
