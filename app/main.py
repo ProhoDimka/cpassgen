@@ -4,7 +4,12 @@ import click
 @click.command()
 @click.option("--username", prompt=True)
 @click.option("--resource", prompt=True)
-@click.option("--secret", prompt=True, hide_input=True)
+@click.option(
+    "--secret",
+    envvar="PASS_GEN_KEY_WORD",
+    prompt=True,
+    hide_input=True,
+)
 def generate(username: str, resource: str, secret: str):
     """
     Generate password based on given parameters.
