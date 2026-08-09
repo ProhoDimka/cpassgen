@@ -12,13 +12,13 @@ from app.generator import generate_password
     prompt=True,
     hide_input=True,
 )
-@click.option("--min-length", type=int, default=12, show_default=True)
-@click.option("--max-length", type=int, default=16, show_default=True)
-@click.option("--upper", type=int, default=2, show_default=True)
-@click.option("--lower", type=int, default=2, show_default=True)
-@click.option("--digits", type=int, default=2, show_default=True)
-@click.option("--specials", type=int, default=2, show_default=True)
-@click.option("--mask", type=int, default=1, show_default=True)
+@click.option("--min-length", type=int, default=24, show_default=True)
+@click.option("--max-length", type=int, default=32, show_default=True)
+@click.option("--upper", type=int, default=0, show_default=True)
+@click.option("--lower", type=int, default=0, show_default=True)
+@click.option("--digits", type=int, default=0, show_default=True)
+@click.option("--specials", type=int, default=0, show_default=True)
+@click.option("--mask", type=int, default=0, show_default=True)
 def generate(
     username: str,
     resource: str,

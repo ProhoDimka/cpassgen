@@ -15,13 +15,13 @@ DIGIT_CHARS = "0123456789"
 SPECIAL_CHARS = "!@#$%^&*()-_=+[]{};:,.<>/?\\|\"'`~"
 
 DEFAULT_CONSTRAINTS = PasswordConstraints(
-    min_length=12,
-    max_length=16,
-    upper=2,
-    lower=2,
-    digits=2,
-    specials=2,
-    mask=1,
+    min_length=24,
+    max_length=32,
+    upper=0,
+    lower=0,
+    digits=0,
+    specials=0,
+    mask=0,
 )
 
 
