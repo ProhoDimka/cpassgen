@@ -2,28 +2,12 @@ import click
 
 from app import models
 from app.generator import generate_password_from_request
+from app.persistence import load_repository_from_env
 
 
-@click.command()
-@click.option("--username", prompt=True)
-@click.option("--resource", prompt=True)
-@click.option(
-    "--secret",
-    envvar="PASS_GEN_KEY_WORD",
-    prompt=True,
-    hide_input=True,
-)
-@click.option("--min-length", type=int, default=24, show_default=True)
-@click.option("--max-length", type=int, default=32, show_default=True)
-@click.option("--upper", type=int, default=0, show_default=True)
-@click.option("--lower", type=int, default=0, show_default=True)
-@click.option("--digits", type=int, default=0, show_default=True)
-@click.option("--specials", type=int, default=0, show_default=True)
-@click.option("--mask", type=int, default=0, show_default=True)
-def generate(
+def _build_profile(
     username: str,
     resource: str,
-    secret: str,
     min_length: int,
     max_length: int,
     upper: int,
@@ -32,22 +16,142 @@ def generate(
     specials: int,
     mask: int,
 ):
-    """Generate password based on given parameters."""
+    return models.PasswordProfile(
+        username=username,
+        resource=resource,
+        constraints=models.PasswordConstraints(
+            min_length=min_length,
+            max_length=max_length,
+            upper=upper,
+            lower=lower,
+            digits=digits,
+            specials=specials,
+            mask=mask,
+        ),
+    )
+
+
+def _constraint_options(func):
+    option_decorator = click.option
+    options = (
+        "--min-length",
+        "--max-length",
+        "--upper",
+        "--lower",
+        "--digits",
+        "--specials",
+        "--mask",
+    )
+    defaults = {
+        "--min-length": 24,
+        "--max-length": 32,
+        "--upper": 0,
+        "--lower": 0,
+        "--digits": 0,
+        "--specials": 0,
+        "--mask": 0,
+    }
+    for option_name in reversed(options):
+        func = option_decorator(
+            option_name,
+            type=int,
+            default=defaults[option_name],
+            show_default=True,
+        )(func)
+    return func
+
+
+@click.group()
+def cli():
+    """Manage password profiles and generate deterministic passwords."""
+
+
+@cli.command("create")
+@click.option("--username", prompt=True)
+@click.option("--resource", prompt=True)
+@_constraint_options
+def create_profile(
+    username: str,
+    resource: str,
+    min_length: int,
+    max_length: int,
+    upper: int,
+    lower: int,
+    digits: int,
+    specials: int,
+    mask: int,
+):
     try:
+        profile = _build_profile(
+            username,
+            resource,
+            min_length,
+            max_length,
+            upper,
+            lower,
+            digits,
+            specials,
+            mask,
+        )
+        repository = load_repository_from_env()
+        repository.create(profile)
+    except ValueError as error:
+        click.echo(f"Error: {error}")
+        raise SystemExit(1) from error
+    click.echo("Profile created.")
+
+
+@cli.command("set")
+@click.option("--username", prompt=True)
+@click.option("--resource", prompt=True)
+@_constraint_options
+def set_profile(
+    username: str,
+    resource: str,
+    min_length: int,
+    max_length: int,
+    upper: int,
+    lower: int,
+    digits: int,
+    specials: int,
+    mask: int,
+):
+    try:
+        profile = _build_profile(
+            username,
+            resource,
+            min_length,
+            max_length,
+            upper,
+            lower,
+            digits,
+            specials,
+            mask,
+        )
+        repository = load_repository_from_env()
+        repository.set(profile)
+    except ValueError as error:
+        click.echo(f"Error: {error}")
+        raise SystemExit(1) from error
+    click.echo("Profile updated.")
+
+
+@cli.command("get")
+@click.option("--username", prompt=True)
+@click.option("--resource", prompt=True)
+@click.option(
+    "--secret",
+    envvar="PASS_GEN_KEY_WORD",
+    prompt=True,
+    hide_input=True,
+)
+def get_password(username: str, resource: str, secret: str):
+    """Generate password from persisted profile and secret."""
+    try:
+        repository = load_repository_from_env()
+        profile = repository.get(username, resource)
         request = models.PasswordGenerationRequest(
-            profile=models.PasswordProfile(
-                username=username,
-                resource=resource,
-                constraints=models.PasswordConstraints(
-                    min_length=min_length,
-                    max_length=max_length,
-                    upper=upper,
-                    lower=lower,
-                    digits=digits,
-                    specials=specials,
-                    mask=mask,
-                ),
-            ),
+            profile=profile,
             secret=secret,
         )
         password = generate_password_from_request(request)
@@ -58,4 +162,4 @@ def generate(
 
 
 if __name__ == "__main__":
-    generate()
+    cli()
