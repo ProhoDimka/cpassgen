@@ -26,6 +26,7 @@ class PasswordProfile:
     username: str
     resource: str
     constraints: PasswordConstraints
+    generation_version: int = 1
 
     @property
     def identity(self) -> Tuple[str, str]:

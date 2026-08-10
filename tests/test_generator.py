@@ -1,4 +1,5 @@
 import pytest
+
 from app.generator import generate_password, generate_password_from_request
 from app.models import PasswordConstraints, PasswordGenerationRequest, PasswordProfile
 
@@ -70,3 +71,16 @@ def test_generate_password_from_request_matches_api():
     )
 
     assert via_request == via_kwargs
+
+
+def test_generate_password_different_versions_produce_different_results():
+    pw_v1 = generate_password("user1", "resource1", "secret1", generation_version=1)
+    pw_v2 = generate_password("user1", "resource1", "secret1", generation_version=2)
+
+    assert pw_v1 != pw_v2
+
+
+def test_generate_password_consistency_with_custom_version():
+    pw1 = generate_password("user1", "resource1", "secret1", generation_version=3)
+    pw2 = generate_password("user1", "resource1", "secret1", generation_version=3)
+    assert pw1 == pw2

@@ -26,15 +26,21 @@ DEFAULT_CONSTRAINTS = models.PasswordConstraints(
 )
 
 
-def _legacy_password(username: str, resource: str, secret: str) -> str:
-    data = f"{username}:{resource}:{secret}".encode("utf-8")
+def _legacy_password(
+    username: str, resource: str, secret: str, generation_version: int
+) -> str:
+    raw = f"{username}:{resource}:{generation_version}:{secret}"
+    data = raw.encode("utf-8")
     b64_data = base64.urlsafe_b64encode(data)
     digest = hashlib.sha256(b64_data).digest()
     return base64.urlsafe_b64encode(digest).decode("utf-8")
 
 
-def _derive_seed(username: str, resource: str, secret: str) -> bytes:
-    data = f"{username}:{resource}:{secret}".encode("utf-8")
+def _derive_seed(
+    username: str, resource: str, secret: str, generation_version: int
+) -> bytes:
+    raw = f"{username}:{resource}:{generation_version}:{secret}"
+    data = raw.encode("utf-8")
     return hashlib.sha256(data).digest()
 
 
@@ -76,8 +82,9 @@ def _generate_with_constraints(
     resource: str,
     secret: str,
     constraints: models.PasswordConstraints,
+    generation_version: int,
 ) -> str:
-    seed = _derive_seed(username, resource, secret)
+    seed = _derive_seed(username, resource, secret, generation_version)
     expander = SeedExpander(seed)
     length_range = constraints.max_length - constraints.min_length + 1
     step = expander.randbelow(length_range)
@@ -132,11 +139,14 @@ def generate_password_from_request(
     username = request.profile.username
     resource = request.profile.resource
     secret = request.secret
+    generation_version = request.profile.generation_version
 
     if constraints == DEFAULT_CONSTRAINTS:
-        return _legacy_password(username, resource, secret)
+        return _legacy_password(username, resource, secret, generation_version)
 
-    return _generate_with_constraints(username, resource, secret, constraints)
+    return _generate_with_constraints(
+        username, resource, secret, constraints, generation_version
+    )
 
 
 def generate_password(
@@ -150,6 +160,7 @@ def generate_password(
     digits: int = 2,
     specials: int = 2,
     mask: int = 1,
+    generation_version: int = 1,
 ) -> str:
     request = models.PasswordGenerationRequest(
         profile=models.PasswordProfile(
@@ -164,6 +175,7 @@ def generate_password(
                 specials=specials,
                 mask=mask,
             ),
+            generation_version=generation_version,
         ),
         secret=secret,
     )

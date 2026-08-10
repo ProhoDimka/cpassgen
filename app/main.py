@@ -15,6 +15,7 @@ def _build_profile(
     digits: int,
     specials: int,
     mask: int,
+    generation_version: int,
 ):
     return models.PasswordProfile(
         username=username,
@@ -28,6 +29,7 @@ def _build_profile(
             specials=specials,
             mask=mask,
         ),
+        generation_version=generation_version,
     )
 
 
@@ -69,10 +71,18 @@ def cli():
 @cli.command("create")
 @click.option("--username", prompt=True)
 @click.option("--resource", prompt=True)
+@click.option(
+    "--generation-version",
+    type=int,
+    default=1,
+    show_default=True,
+    help="Generation version for the password derivation algorithm.",
+)
 @_constraint_options
 def create_profile(
     username: str,
     resource: str,
+    generation_version: int,
     min_length: int,
     max_length: int,
     upper: int,
@@ -92,6 +102,7 @@ def create_profile(
             digits,
             specials,
             mask,
+            generation_version,
         )
         repository = load_repository_from_env()
         repository.create(profile)
@@ -104,10 +115,18 @@ def create_profile(
 @cli.command("set")
 @click.option("--username", prompt=True)
 @click.option("--resource", prompt=True)
+@click.option(
+    "--generation-version",
+    type=int,
+    default=1,
+    show_default=True,
+    help="Generation version for the password derivation algorithm.",
+)
 @_constraint_options
 def set_profile(
     username: str,
     resource: str,
+    generation_version: int,
     min_length: int,
     max_length: int,
     upper: int,
@@ -127,6 +146,7 @@ def set_profile(
             digits,
             specials,
             mask,
+            generation_version,
         )
         repository = load_repository_from_env()
         repository.set(profile)

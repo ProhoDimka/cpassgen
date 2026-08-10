@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from copy import deepcopy
 from dataclasses import asdict
 from pathlib import Path
 
@@ -47,7 +48,8 @@ class PasswordProfileRepository:
             raise ProfileAlreadyExistsError(
                 "PasswordProfile already exists for given username/resource.",
             )
-        self._write_profile(path, validated_profile)
+        payload = self._make_payload(validated_profile, version_history=[])
+        self._write_payload(path, payload)
         return validated_profile
 
     def set(self, profile: PasswordProfile) -> PasswordProfile:
@@ -59,7 +61,41 @@ class PasswordProfileRepository:
             raise ProfileNotFoundError(
                 "PasswordProfile does not exist for given username/resource.",
             )
-        self._write_profile(path, validated_profile)
+        raw = path.read_text(encoding="utf-8")
+        existing_data = json.loads(raw)
+        constraints_raw = existing_data["constraints"]
+        existing_constraints = PasswordConstraints(**constraints_raw)
+        existing_version = existing_data.get("generation_version", 1)
+
+        new_constraints = validated_profile.constraints
+        new_version = validated_profile.generation_version
+
+        cond_1 = new_constraints != existing_constraints
+        cond_2 = new_version == existing_version
+        if cond_1 and cond_2:
+            raise ValueError(
+                "PasswordConstraints changed but generation_version "
+                "was not incremented. Bump generation_version when "
+                "changing constraints."
+            )
+
+        history = deepcopy(existing_data.get("version_history", []))
+        any_change = (new_constraints != existing_constraints) or (
+            new_version != existing_version
+        )
+        if any_change:
+            history.append(
+                {
+                    "generation_version": existing_version,
+                    "constraints": existing_data["constraints"],
+                }
+            )
+
+        payload = self._make_payload(
+            validated_profile,
+            version_history=history,
+        )
+        self._write_payload(path, payload)
         return validated_profile
 
     def get(self, username: str, resource: str) -> PasswordProfile:
@@ -74,13 +110,17 @@ class PasswordProfileRepository:
             username=raw_data["username"],
             resource=raw_data["resource"],
             constraints=validate_constraints(constraints),
+            generation_version=raw_data.get("generation_version", 1),
         )
 
     def _validate_profile(self, profile: PasswordProfile) -> PasswordProfile:
+        if profile.generation_version < 1:
+            raise ValueError("generation_version must be >= 1.")
         return PasswordProfile(
             username=profile.username,
             resource=profile.resource,
             constraints=validate_constraints(profile.constraints),
+            generation_version=profile.generation_version,
         )
 
     def _profile_path(self, username: str, resource: str) -> Path:
@@ -89,9 +129,14 @@ class PasswordProfileRepository:
         shard = key[:2]
         return self._profiles_root / shard / f"{key}.json"
 
-    def _write_profile(self, path: Path, profile: PasswordProfile) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
+    @staticmethod
+    def _make_payload(profile: PasswordProfile, version_history: list) -> dict:
         payload = asdict(profile)
+        payload["version_history"] = version_history
+        return payload
+
+    def _write_payload(self, path: Path, payload: dict) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
         payload_json = json.dumps(
             payload,
             ensure_ascii=True,
