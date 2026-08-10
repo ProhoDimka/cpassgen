@@ -11,20 +11,23 @@ set every time.
 - File-based profile repository with deterministic sharded layout
 - Constraint-driven password generation with stable pseudo-random expansion
 - Backward-compatible legacy mode for default constraints
+- Generation versioning: version embedded in derivation string, version history stored
+- Constraints cannot be changed without bumping generation version
 - Explicit validation and clear CLI errors (`exit code 1`)
 
 ## How generation works
 
-`cpassgen` supports two deterministic methods:
+`cpassgen` supports two deterministic methods. Both include `generation_version`
+in the input string so different versions produce different passwords.
 
 1. Legacy mode (backward compatibility)
-    - Input: `username:resource:secret`
+    - Input: `username:resource:version:secret`
     - Pipeline: URL-safe Base64 -> SHA256 -> URL-safe Base64
     - Triggered when profile constraints are default:
         - `min_length=24`, `max_length=32`, `upper=0`, `lower=0`, `digits=0`, `specials=0`, `mask=0`
 
 2. Constraint mode (recommended)
-    - Input seed: `SHA256(username:resource:secret)`
+    - Input seed: `SHA256(username:resource:version:secret)`
     - Seed is expanded by deterministic HMAC-SHA256 stream generator
     - Password is built to satisfy quotas and range constraints:
         - `min_length`, `max_length`, `upper`, `lower`, `digits`, `specials`, `mask`
@@ -72,12 +75,22 @@ poetry run python -m app.main create \
   --resource example.com
 ```
 
+Create profile with custom generation version:
+
+```bash
+poetry run python -m app.main create \
+  --username user1 \
+  --resource example.com \
+  --generation-version 3
+```
+
 Update existing profile constraints:
 
 ```bash
 poetry run python -m app.main set \
   --username user1 \
   --resource example.com \
+  --generation-version 2 \
   --min-length 16 \
   --max-length 20 \
   --upper 2 \
@@ -101,6 +114,9 @@ Notes:
 - `set` fails if profile does not exist
 - `get` fails if profile does not exist
 - all failures are returned as human-readable `Error: ...` messages
+- `--generation-version` defaults to 1 and can be set on both `create` and `set`
+- changing `PasswordConstraints` without bumping `--generation-version` is rejected
+- each version or constraint change records the previous state in `version_history` inside the profile JSON
 
 ## Best practices for CLI password services
 
