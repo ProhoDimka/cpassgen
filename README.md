@@ -7,8 +7,9 @@ set every time.
 
 ## What is new
 
-- Multi-command CLI: `create`, `set`, `get`
+- Multi-command CLI: `create`, `set`, `get`, `sync`
 - File-based profile repository with deterministic sharded layout
+- Git sync: add/commit/push changes to remote, pull updates, conflict detection
 - Constraint-driven password generation with stable pseudo-random expansion
 - Backward-compatible legacy mode for default constraints
 - Generation versioning: version embedded in derivation string, version history stored
@@ -57,6 +58,17 @@ Example:
 ```bash
 export PASS_GEN_GIT_PERSISTENCE_PATH="$HOME/.cpassgen"
 export PASS_GEN_KEY_WORD="my-secret"
+```
+
+### Git sync setup
+
+The `sync` command and automatic sync prompts require a git repository with an `origin` remote:
+
+```bash
+export PASS_GEN_GIT_PERSISTENCE_PATH="$HOME/.cpassgen"
+git -C "$HOME/.cpassgen" init
+git -C "$HOME/.cpassgen" remote add origin <your-remote-url>
+git -C "$HOME/.cpassgen" commit --allow-empty -m "initial"  # optional
 ```
 
 ## CLI commands
@@ -108,11 +120,19 @@ poetry run python -m app.main get \
   --resource example.com
 ```
 
+Sync profile storage with remote git repository:
+
+```bash
+poetry run python -m app.main sync
+```
+
 Notes:
 
 - `create` fails if profile already exists
 - `set` fails if profile does not exist
 - `get` fails if profile does not exist
+- after successful `create` or `set`, the tool prompts to sync changes with the remote repository (skipped in non-interactive mode)
+- `sync` commits uncommitted changes, pulls remote updates via rebase, pushes local changes; on conflict prints detailed resolution instructions
 - all failures are returned as human-readable `Error: ...` messages
 - `--generation-version` defaults to 1 and can be set on both `create` and `set`
 - changing `PasswordConstraints` without bumping `--generation-version` is rejected
@@ -148,6 +168,7 @@ pytest tests/test_main.py
 app/main.py         CLI entrypoint (Click group + commands)
 app/generator.py    deterministic password generation logic
 app/persistence.py  profile repository and filesystem layout
+app/sync_service.py git sync, commit, push, pull, conflict detection
 app/seed_expander.py deterministic pseudo-random byte stream
 app/models.py       immutable domain models
 app/validators.py   constraints validation

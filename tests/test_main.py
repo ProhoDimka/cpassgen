@@ -1,6 +1,56 @@
+import subprocess
+
 from click.testing import CliRunner
 
 from app.main import cli
+
+
+def _setup_git_repo_with_remote(tmp_path, branch="main"):
+    local = tmp_path / "local"
+    remote = tmp_path / "remote.git"
+    local.mkdir(parents=True, exist_ok=True)
+    remote.mkdir(parents=True, exist_ok=True)
+
+    subprocess.run(
+        ["git", "-C", str(local), "init", "-b", branch],
+        check=True, capture_output=True, text=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(local), "config", "user.email", "test@test.com"],
+        check=True, capture_output=True, text=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(local), "config", "user.name", "Test"],
+        check=True, capture_output=True, text=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(remote), "init", "--bare", "-b", branch],
+        check=True, capture_output=True, text=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(local), "remote", "add", "origin", str(remote)],
+        check=True, capture_output=True, text=True,
+    )
+
+    (local / "README.md").write_text("# test")
+    subprocess.run(
+        ["git", "-C", str(local), "add", "-A"],
+        check=True, capture_output=True, text=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(local), "commit", "-m", "initial"],
+        check=True, capture_output=True, text=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(local), "push", "-u", "origin", branch],
+        check=True, capture_output=True, text=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(local), "remote", "set-head", "origin", branch],
+        check=True, capture_output=True, text=True,
+    )
+
+    return local
 
 
 def test_create_then_get_password_consistency_default_cli(tmp_path):
@@ -219,3 +269,46 @@ def test_generate_password_respects_version_from_profile(tmp_path):
     assert pw1.exit_code == 0
     assert pw2.exit_code == 0
     assert pw1.output == pw2.output
+
+
+def test_sync_fails_when_not_git_repo(tmp_path):
+    runner = CliRunner()
+    not_repo = tmp_path / "not_repo"
+    not_repo.mkdir()
+
+    result = runner.invoke(
+        cli,
+        args=["sync"],
+        env={"PASS_GEN_GIT_PERSISTENCE_PATH": str(not_repo)},
+    )
+
+    assert result.exit_code == 1
+    assert "not a git repository" in result.output
+
+
+def test_create_does_not_prompt_sync_in_non_tty(tmp_path):
+    runner = CliRunner()
+    env = {"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)}
+
+    result = runner.invoke(
+        cli,
+        args=["create", "--username", "user1", "--resource", "resource1"],
+        env=env,
+    )
+
+    assert result.exit_code == 0
+    assert "Profile created." in result.output
+
+
+def test_sync_cli_succeeds_up_to_date(tmp_path):
+    repo = _setup_git_repo_with_remote(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        args=["sync"],
+        env={"PASS_GEN_GIT_PERSISTENCE_PATH": str(repo)},
+    )
+
+    assert result.exit_code == 0
+    assert "Already up to date." in result.output

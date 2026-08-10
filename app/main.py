@@ -3,6 +3,7 @@ import click
 from app import models
 from app.generator import generate_password_from_request
 from app.persistence import load_repository_from_env
+from app.sync_service import SyncError, SyncService
 
 
 def _build_profile(
@@ -63,9 +64,42 @@ def _constraint_options(func):
     return func
 
 
+def _offer_sync(repository, username: str, resource: str, action: str) -> None:
+    try:
+        prompt = "Sync changes with remote storage?"
+        do_sync = click.confirm(prompt, default=False)
+    except click.Abort:
+        return
+    if not do_sync:
+        return
+    try:
+        sync_svc = SyncService(repository._root)
+        msg = f"sync: {action} profile {username}/{resource}"
+        click.echo(sync_svc.sync(msg))
+    except SyncError as exc:
+        if exc.conflict_info:
+            click.echo(exc.conflict_info, err=True)
+            raise SystemExit(1)
+        click.echo(f"Sync skipped: {exc}", err=True)
+
+
 @click.group()
 def cli():
     """Manage password profiles and generate deterministic passwords."""
+
+
+@cli.command("sync")
+def sync_profiles():
+    """Synchronize profile storage with the remote git repository."""
+    try:
+        repository = load_repository_from_env()
+        sync_svc = SyncService(repository._root)
+        click.echo(sync_svc.sync())
+    except (ValueError, SyncError) as error:
+        click.echo(f"Error: {error}")
+        if isinstance(error, SyncError) and error.conflict_info:
+            click.echo(error.conflict_info, err=True)
+        raise SystemExit(1) from error
 
 
 @cli.command("create")
@@ -110,6 +144,7 @@ def create_profile(
         click.echo(f"Error: {error}")
         raise SystemExit(1) from error
     click.echo("Profile created.")
+    _offer_sync(repository, username, resource, "create")
 
 
 @cli.command("set")
@@ -154,6 +189,7 @@ def set_profile(
         click.echo(f"Error: {error}")
         raise SystemExit(1) from error
     click.echo("Profile updated.")
+    _offer_sync(repository, username, resource, "update")
 
 
 @cli.command("get")
