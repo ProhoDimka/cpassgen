@@ -35,15 +35,14 @@ def _build_profile(
 
 
 def _constraint_options(func):
-    option_decorator = click.option
     options = (
-        "--min-length",
-        "--max-length",
-        "--upper",
-        "--lower",
-        "--digits",
-        "--specials",
-        "--mask",
+        ("--min-length", None),
+        ("--max-length", None),
+        ("--upper", None),
+        ("--lower", None),
+        ("--digits", "-d"),
+        ("--specials", None),
+        ("--mask", "-m"),
     )
     defaults = {
         "--min-length": 24,
@@ -54,11 +53,12 @@ def _constraint_options(func):
         "--specials": 0,
         "--mask": 0,
     }
-    for option_name in reversed(options):
-        func = option_decorator(
-            option_name,
+    for long_name, short_name in reversed(options):
+        args = [long_name] if short_name is None else [short_name, long_name]
+        func = click.option(
+            *args,
             type=int,
-            default=defaults[option_name],
+            default=defaults[long_name],
             show_default=True,
         )(func)
     return func
@@ -103,10 +103,11 @@ def sync_profiles():
 
 
 @cli.command("create")
-@click.option("--username", prompt=True)
-@click.option("--resource", prompt=True)
+@click.option("--username", "-u", prompt=True)
+@click.option("--resource", "-r", prompt=True)
 @click.option(
     "--generation-version",
+    "-g",
     type=int,
     default=1,
     show_default=True,
@@ -148,10 +149,11 @@ def create_profile(
 
 
 @cli.command("set")
-@click.option("--username", prompt=True)
-@click.option("--resource", prompt=True)
+@click.option("--username", "-u", prompt=True)
+@click.option("--resource", "-r", prompt=True)
 @click.option(
     "--generation-version",
+    "-g",
     type=int,
     default=1,
     show_default=True,
@@ -193,10 +195,11 @@ def set_profile(
 
 
 @cli.command("get")
-@click.option("--username", prompt=True)
-@click.option("--resource", prompt=True)
+@click.option("--username", "-u", prompt=True)
+@click.option("--resource", "-r", prompt=True)
 @click.option(
     "--secret",
+    "-s",
     envvar="PASS_GEN_KEY_WORD",
     prompt=True,
     hide_input=True,
