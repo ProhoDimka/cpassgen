@@ -7,7 +7,7 @@ set every time.
 
 ## What is new
 
-- Multi-command CLI: `create`, `set`, `get`, `sync`
+- Multi-command CLI: `create`, `bump`, `get`, `sync`
 - File-based profile repository with deterministic sharded layout
 - Git sync: add/commit/push changes to remote, pull updates, conflict detection
 - Constraint-driven password generation with stable pseudo-random expansion
@@ -99,10 +99,9 @@ poetry run python -m app.main create \
 Update existing profile constraints:
 
 ```bash
-poetry run python -m app.main set \
+poetry run python -m app.main bump \
   --username user1 \
   --resource example.com \
-  --generation-version 2 \
   --min-length 16 \
   --max-length 20 \
   --upper 2 \
@@ -129,19 +128,18 @@ poetry run python -m app.main sync
 Notes:
 
 - `create` fails if profile already exists
-- `set` fails if profile does not exist
+- `bump` fails if profile does not exist
 - `get` fails if profile does not exist
-- after successful `create` or `set`, the tool prompts to sync changes with the remote repository (skipped in non-interactive mode)
+- after successful `create` or `bump`, the tool prompts to sync changes with the remote repository (skipped in non-interactive mode)
 - `sync` commits uncommitted changes, pulls remote updates via rebase, pushes local changes; on conflict prints detailed resolution instructions
 - all failures are returned as human-readable `Error: ...` messages
-- `--generation-version` defaults to 1 and can be set on both `create` and `set`
-- changing `PasswordConstraints` without bumping `--generation-version` is rejected
-- each version or constraint change records the previous state in `version_history` inside the profile JSON
+- `bump` automatically increments the `generation_version`; constraint changes are optional
+- each constraint change via `bump` records the previous state in `version_history` inside the profile JSON
 
 ## Best practices for CLI password services
 
 - Keep one profile per real account identity (`username + resource`)
-- Use `set` to evolve constraints gradually instead of recreating profiles
+- Use `bump` to evolve constraints gradually instead of recreating profiles
 - Store secrets in environment variables or secure prompt input, not shell history
 - Keep persistence path in private local storage and back it up securely
 - Validate constraint changes in CI (`make lint`, `make test`) before sharing

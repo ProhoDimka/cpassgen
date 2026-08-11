@@ -13,41 +13,59 @@ def _setup_git_repo_with_remote(tmp_path, branch="main"):
 
     subprocess.run(
         ["git", "-C", str(local), "init", "-b", branch],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     subprocess.run(
         ["git", "-C", str(local), "config", "user.email", "test@test.com"],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     subprocess.run(
         ["git", "-C", str(local), "config", "user.name", "Test"],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     subprocess.run(
         ["git", "-C", str(remote), "init", "--bare", "-b", branch],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     subprocess.run(
         ["git", "-C", str(local), "remote", "add", "origin", str(remote)],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
 
     (local / "README.md").write_text("# test")
     subprocess.run(
         ["git", "-C", str(local), "add", "-A"],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     subprocess.run(
         ["git", "-C", str(local), "commit", "-m", "initial"],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     subprocess.run(
         ["git", "-C", str(local), "push", "-u", "origin", branch],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     subprocess.run(
         ["git", "-C", str(local), "remote", "set-head", "origin", branch],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
 
     return local
@@ -95,7 +113,7 @@ def test_create_then_get_password_consistency_default_cli(tmp_path):
     assert result1.output == result2.output
 
 
-def test_set_profile_constraints_then_get_password(tmp_path):
+def test_bump_profile_constraints_then_get_password(tmp_path):
     runner = CliRunner()
     env = {"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)}
 
@@ -104,16 +122,14 @@ def test_set_profile_constraints_then_get_password(tmp_path):
         args=["create", "--username", "user1", "--resource", "resource1"],
         env=env,
     )
-    set_result = runner.invoke(
+    bump_result = runner.invoke(
         cli,
         args=[
-            "set",
+            "bump",
             "--username",
             "user1",
             "--resource",
             "resource1",
-            "--generation-version",
-            "2",
             "--min-length",
             "8",
             "--max-length",
@@ -146,25 +162,50 @@ def test_set_profile_constraints_then_get_password(tmp_path):
     )
 
     assert create_result.exit_code == 0
-    assert set_result.exit_code == 0
+    assert bump_result.exit_code == 0
     assert get_result.exit_code == 0
     assert len(get_result.output.strip()) == 8
 
 
-def test_get_requires_existing_profile(tmp_path):
+def test_bump_without_constraints_increments_version(tmp_path):
     runner = CliRunner()
+    env = {"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)}
+
+    runner.invoke(
+        cli,
+        args=["create", "--username", "user1", "--resource", "resource1"],
+        env=env,
+    )
+    bump_result = runner.invoke(
+        cli,
+        args=[
+            "bump",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+        ],
+        env=env,
+    )
+
+    assert bump_result.exit_code == 0
+    assert "bumped to version 2" in bump_result.output
+
+
+def test_bump_missing_profile_fails(tmp_path):
+    runner = CliRunner()
+    env = {"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)}
+
     result = runner.invoke(
         cli,
         args=[
-            "get",
+            "bump",
             "--username",
-            "missing",
+            "user1",
             "--resource",
-            "resource",
-            "--secret",
-            "secret",
+            "resource1",
         ],
-        env={"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)},
+        env=env,
     )
 
     assert result.exit_code == 1
@@ -193,33 +234,24 @@ def test_create_with_custom_generation_version(tmp_path):
     assert "Profile created." in result.output
 
 
-def test_set_constraints_without_version_bump_fails(tmp_path):
+def test_get_requires_existing_profile(tmp_path):
     runner = CliRunner()
-    env = {"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)}
-
-    runner.invoke(
-        cli,
-        args=["create", "--username", "user1", "--resource", "resource1"],
-        env=env,
-    )
     result = runner.invoke(
         cli,
         args=[
-            "set",
+            "get",
             "--username",
-            "user1",
+            "missing",
             "--resource",
-            "resource1",
-            "--min-length",
-            "20",
-            "--max-length",
-            "20",
+            "resource",
+            "--secret",
+            "secret",
         ],
-        env=env,
+        env={"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)},
     )
 
     assert result.exit_code == 1
-    assert "generation_version" in result.output
+    assert "does not exist" in result.output
 
 
 def test_generate_password_respects_version_from_profile(tmp_path):
