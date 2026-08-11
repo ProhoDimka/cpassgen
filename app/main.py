@@ -148,50 +148,97 @@ def create_profile(
     _offer_sync(repository, username, resource, "create")
 
 
-@cli.command("set")
+def _bump_option(func, name: str, short: str | None = None):
+    args = [name] if short is None else [short, name]
+    return click.option(
+        *args,
+        type=int,
+        default=None,
+        help="New constraint value (leave unset to keep existing).",
+    )(func)
+
+
+def _bump_constraint_options(func):
+    options = (
+        ("--min-length", None),
+        ("--max-length", None),
+        ("--upper", None),
+        ("--lower", None),
+        ("--digits", "-d"),
+        ("--specials", None),
+        ("--mask", "-m"),
+    )
+    for long_name, short_name in reversed(options):
+        func = _bump_option(func, long_name, short_name)
+    return func
+
+
+@cli.command("bump")
 @click.option("--username", "-u", prompt=True)
 @click.option("--resource", "-r", prompt=True)
-@click.option(
-    "--generation-version",
-    "-g",
-    type=int,
-    default=1,
-    show_default=True,
-    help="Generation version for the password derivation algorithm.",
-)
-@_constraint_options
-def set_profile(
+@_bump_constraint_options
+def bump_profile(
     username: str,
     resource: str,
-    generation_version: int,
-    min_length: int,
-    max_length: int,
-    upper: int,
-    lower: int,
-    digits: int,
-    specials: int,
-    mask: int,
+    min_length: int | None,
+    max_length: int | None,
+    upper: int | None,
+    lower: int | None,
+    digits: int | None,
+    specials: int | None,
+    mask: int | None,
 ):
     try:
-        profile = _build_profile(
-            username,
-            resource,
-            min_length,
-            max_length,
-            upper,
-            lower,
-            digits,
-            specials,
-            mask,
-            generation_version,
-        )
         repository = load_repository_from_env()
-        repository.set(profile)
+        existing = repository.get(username, resource)
+        constraints = existing.constraints
+
+        new_min_length = (
+            min_length if min_length is not None else constraints.min_length
+        )
+        new_max_length = (
+            max_length if max_length is not None else constraints.max_length
+        )
+        new_upper = upper if upper is not None else constraints.upper
+        new_lower = lower if lower is not None else constraints.lower
+        new_digits = digits if digits is not None else constraints.digits
+        new_specials = (
+            specials if specials is not None else constraints.specials
+        )
+        new_mask = mask if mask is not None else constraints.mask
+
+        new_constraints_unchanged = (
+            new_min_length == constraints.min_length
+            and new_max_length == constraints.max_length
+            and new_upper == constraints.upper
+            and new_lower == constraints.lower
+            and new_digits == constraints.digits
+            and new_specials == constraints.specials
+            and new_mask == constraints.mask
+        )
+
+        if new_constraints_unchanged:
+            result = repository.bump(username, resource)
+        else:
+            result = repository.bump(
+                username,
+                resource,
+                new_constraints=models.PasswordConstraints(
+                    min_length=new_min_length,
+                    max_length=new_max_length,
+                    upper=new_upper,
+                    lower=new_lower,
+                    digits=new_digits,
+                    specials=new_specials,
+                    mask=new_mask,
+                ),
+            )
+
+        click.echo(f"Profile bumped to version {result.generation_version}.")
     except ValueError as error:
         click.echo(f"Error: {error}")
         raise SystemExit(1) from error
-    click.echo("Profile updated.")
-    _offer_sync(repository, username, resource, "update")
+    _offer_sync(repository, username, resource, "bump")
 
 
 @cli.command("get")

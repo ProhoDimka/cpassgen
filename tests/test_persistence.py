@@ -47,24 +47,33 @@ def test_create_existing_profile_fails(tmp_path):
         repository.create(profile)
 
 
-def test_set_updates_constraints(tmp_path):
+def test_bump_updates_constraints(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
     repository.create(_profile())
 
-    updated = _profile(min_length=8, max_length=8, generation_version=2)
-    repository.set(updated)
+    new_constraints = PasswordConstraints(
+        min_length=8,
+        max_length=8,
+        upper=0,
+        lower=0,
+        digits=0,
+        specials=0,
+        mask=0,
+    )
+    result = repository.bump("user", "resource", new_constraints=new_constraints)
     loaded = repository.get("user", "resource")
 
+    assert result.generation_version == 2
     assert loaded.constraints.min_length == 8
     assert loaded.constraints.max_length == 8
     assert loaded.generation_version == 2
 
 
-def test_set_missing_profile_fails(tmp_path):
+def test_bump_missing_profile_fails(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
 
     with pytest.raises(ProfileNotFoundError):
-        repository.set(_profile())
+        repository.bump("user", "resource")
 
 
 def test_storage_layout_uses_profiles_shards(tmp_path):
@@ -110,25 +119,33 @@ def test_get_returns_default_version_for_legacy_profiles(tmp_path):
     assert loaded.generation_version == 1
 
 
-def test_set_constraints_change_without_version_bump_fails(tmp_path):
+def test_bump_always_increments_version(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
     repository.create(_profile(min_length=24, max_length=32, generation_version=1))
 
-    updated = _profile(min_length=8, max_length=8, generation_version=1)
+    result = repository.bump("user", "resource")
+    loaded = repository.get("user", "resource")
 
-    with pytest.raises(
-        ValueError,
-        match="generation_version was not incremented",
-    ):
-        repository.set(updated)
+    assert result.generation_version == 2
+    assert loaded.generation_version == 2
+    assert loaded.constraints.min_length == 24
+    assert loaded.constraints.max_length == 32
 
 
-def test_set_records_version_history(tmp_path):
+def test_bump_records_version_history(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
     repository.create(_profile(min_length=24, max_length=32, generation_version=1))
 
-    updated = _profile(min_length=16, max_length=16, generation_version=2)
-    repository.set(updated)
+    new_constraints = PasswordConstraints(
+        min_length=16,
+        max_length=16,
+        upper=0,
+        lower=0,
+        digits=0,
+        specials=0,
+        mask=0,
+    )
+    repository.bump("user", "resource", new_constraints=new_constraints)
 
     json_files = list((tmp_path / "profiles").rglob("*.json"))
     raw = json.loads(json_files[0].read_text(encoding="utf-8"))
@@ -141,27 +158,49 @@ def test_set_records_version_history(tmp_path):
     assert entry["constraints"]["max_length"] == 32
 
 
-def test_set_version_bump_only_records_history(tmp_path):
+def test_bump_version_only_does_not_record_history(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
     repository.create(_profile(min_length=24, max_length=32, generation_version=1))
 
-    updated = _profile(min_length=24, max_length=32, generation_version=2)
-    repository.set(updated)
+    repository.bump("user", "resource")
 
     json_files = list((tmp_path / "profiles").rglob("*.json"))
     raw = json.loads(json_files[0].read_text(encoding="utf-8"))
 
-    assert len(raw["version_history"]) == 1
-    entry = raw["version_history"][0]
-    assert entry["generation_version"] == 1
+    assert raw["generation_version"] == 2
+    assert len(raw.get("version_history", [])) == 0
 
 
-def test_set_multiple_times_accumulates_history(tmp_path):
+def test_bump_multiple_times_accumulates_history(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
     repository.create(_profile(min_length=24, max_length=32, generation_version=1))
 
-    repository.set(_profile(min_length=20, max_length=20, generation_version=2))
-    repository.set(_profile(min_length=16, max_length=16, generation_version=3))
+    repository.bump(
+        "user",
+        "resource",
+        new_constraints=PasswordConstraints(
+            min_length=20,
+            max_length=20,
+            upper=0,
+            lower=0,
+            digits=0,
+            specials=0,
+            mask=0,
+        ),
+    )
+    repository.bump(
+        "user",
+        "resource",
+        new_constraints=PasswordConstraints(
+            min_length=16,
+            max_length=16,
+            upper=0,
+            lower=0,
+            digits=0,
+            specials=0,
+            mask=0,
+        ),
+    )
 
     json_files = list((tmp_path / "profiles").rglob("*.json"))
     raw = json.loads(json_files[0].read_text(encoding="utf-8"))
@@ -172,15 +211,13 @@ def test_set_multiple_times_accumulates_history(tmp_path):
     assert raw["generation_version"] == 3
 
 
-def test_set_no_change_is_allowed(tmp_path):
+def test_bump_no_constraints_change_still_increments(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
     repository.create(_profile(min_length=24, max_length=32, generation_version=1))
 
-    updated = _profile(min_length=24, max_length=32, generation_version=1)
-    repository.set(updated)
+    result = repository.bump("user", "resource")
+    loaded = repository.get("user", "resource")
 
-    json_files = list((tmp_path / "profiles").rglob("*.json"))
-    raw = json.loads(json_files[0].read_text(encoding="utf-8"))
-
-    assert raw["generation_version"] == 1
-    assert len(raw.get("version_history", [])) == 0
+    assert result.generation_version == 2
+    assert loaded.generation_version == 2
+    assert loaded.constraints == result.constraints

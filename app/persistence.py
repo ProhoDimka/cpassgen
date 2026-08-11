@@ -52,11 +52,13 @@ class PasswordProfileRepository:
         self._write_payload(path, payload)
         return validated_profile
 
-    def set(self, profile: PasswordProfile) -> PasswordProfile:
-        validated_profile = self._validate_profile(profile)
-        path = self._profile_path(
-            validated_profile.username, validated_profile.resource
-        )
+    def bump(
+        self,
+        username: str,
+        resource: str,
+        new_constraints: PasswordConstraints | None = None,
+    ) -> PasswordProfile:
+        path = self._profile_path(username, resource)
         if not path.exists():
             raise ProfileNotFoundError(
                 "PasswordProfile does not exist for given username/resource.",
@@ -67,22 +69,22 @@ class PasswordProfileRepository:
         existing_constraints = PasswordConstraints(**constraints_raw)
         existing_version = existing_data.get("generation_version", 1)
 
-        new_constraints = validated_profile.constraints
-        new_version = validated_profile.generation_version
+        new_version = existing_version + 1
+        constraints = (
+            validate_constraints(new_constraints)
+            if new_constraints is not None
+            else existing_constraints
+        )
 
-        cond_1 = new_constraints != existing_constraints
-        cond_2 = new_version == existing_version
-        if cond_1 and cond_2:
-            raise ValueError(
-                "PasswordConstraints changed but generation_version "
-                "was not incremented. Bump generation_version when "
-                "changing constraints."
-            )
+        validated_profile = PasswordProfile(
+            username=username,
+            resource=resource,
+            constraints=constraints,
+            generation_version=new_version,
+        )
 
         history = deepcopy(existing_data.get("version_history", []))
-        any_change = (new_constraints != existing_constraints) or (
-            new_version != existing_version
-        )
+        any_change = constraints != existing_constraints
         if any_change:
             history.append(
                 {
