@@ -218,7 +218,71 @@ def bump_profile(
         )
 
         if new_constraints_unchanged:
-            result = repository.bump(username, resource)
+            try:
+                change = click.confirm(
+                    "Modify password constraints before bumping?",
+                    default=False,
+                )
+            except click.Abort:
+                change = False
+            if change:
+                new_min_length = click.prompt(
+                    "min_length",
+                    type=int,
+                    default=constraints.min_length,
+                    show_default=True,
+                )
+                new_max_length = click.prompt(
+                    "max_length",
+                    type=int,
+                    default=constraints.max_length,
+                    show_default=True,
+                )
+                new_upper = click.prompt(
+                    "upper",
+                    type=int,
+                    default=constraints.upper,
+                    show_default=True,
+                )
+                new_lower = click.prompt(
+                    "lower",
+                    type=int,
+                    default=constraints.lower,
+                    show_default=True,
+                )
+                new_digits = click.prompt(
+                    "digits",
+                    type=int,
+                    default=constraints.digits,
+                    show_default=True,
+                )
+                new_specials = click.prompt(
+                    "specials",
+                    type=int,
+                    default=constraints.specials,
+                    show_default=True,
+                )
+                new_mask = click.prompt(
+                    "mask",
+                    type=int,
+                    default=constraints.mask,
+                    show_default=True,
+                )
+                result = repository.bump(
+                    username,
+                    resource,
+                    new_constraints=models.PasswordConstraints(
+                        min_length=new_min_length,
+                        max_length=new_max_length,
+                        upper=new_upper,
+                        lower=new_lower,
+                        digits=new_digits,
+                        specials=new_specials,
+                        mask=new_mask,
+                    ),
+                )
+            else:
+                result = repository.bump(username, resource)
         else:
             result = repository.bump(
                 username,
