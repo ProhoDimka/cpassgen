@@ -1,4 +1,5 @@
 import json
+import os
 
 import pytest
 
@@ -123,3 +124,15 @@ def test_public_dict_omits_secret_key_word():
 
     assert public == {"git_persistence_path": "/path/to/repo"}
     assert "key_word" not in public
+
+
+def test_load_config_expands_tilde_in_persistence_path(monkeypatch, tmp_path):
+    _clear_env(monkeypatch)
+    home = tmp_path / "home.json"
+    _write_config(home, {"git_persistence_path": "~/repo"})
+    monkeypatch.setattr(config_module, "default_config_path", lambda: home)
+
+    config = load_config()
+
+    assert config.git_persistence_path == os.path.expanduser("~/repo")
+    assert config.git_persistence_path.startswith("/")

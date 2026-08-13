@@ -91,7 +91,11 @@ def load_config(config_path: str | None = None) -> Config:
         )
     _merge_env_values(merged)
 
+    persistence_path = merged.get("git_persistence_path")
+    if persistence_path is not None:
+        persistence_path = os.path.expanduser(persistence_path)
+
     return Config(
-        git_persistence_path=merged.get("git_persistence_path"),
+        git_persistence_path=persistence_path,
         key_word=merged.get("key_word"),
     )
