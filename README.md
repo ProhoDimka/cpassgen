@@ -11,31 +11,23 @@ set every time.
 - File-based profile repository with deterministic sharded layout
 - Git sync: add/commit/push changes to remote, pull updates, conflict detection
 - Constraint-driven password generation with stable pseudo-random expansion
-- Backward-compatible legacy mode for default constraints
 - Generation versioning: version embedded in derivation string, version history stored
 - Constraints cannot be changed without bumping generation version
 - Explicit validation and clear CLI errors (`exit code 1`)
 
 ## How generation works
 
-`cpassgen` supports two deterministic methods. Both include `generation_version`
-in the input string so different versions produce different passwords.
+`cpassgen` generates passwords deterministically. The `generation_version`
+is included in the input string so different versions produce different passwords.
 
-1. Legacy mode (backward compatibility)
-    - Input: `username:resource:version:secret`
-    - Pipeline: URL-safe Base64 -> SHA256 -> URL-safe Base64
-    - Triggered when profile constraints are default:
-        - `length=24`, `upper=0`, `lower=0`, `digits=0`, `specials=0`, `mask=0`
-
-2. Constraint mode (recommended)
-    - Input seed: `SHA256(username:resource:version:secret)`
-    - Seed is expanded by deterministic HMAC-SHA256 stream generator
-    - Password is built to satisfy quotas:
-        - `length`, `upper`, `lower`, `digits`, `specials`, `mask`
-    - `upper`, `lower`, `digits` and `specials` generate exactly that many
-      characters; `mask` escapes that many special characters; remaining
-      slots are filled with lowercase characters only
-    - Character order is deterministically shuffled
+- Input seed: `SHA256(username:resource:version:secret)`
+- Seed is expanded by deterministic HMAC-SHA256 stream generator
+- Password is built to satisfy quotas:
+    - `length`, `upper`, `lower`, `digits`, `specials`, `mask`
+- `upper`, `lower`, `digits` and `specials` generate exactly that many
+  characters; `mask` escapes that many special characters; remaining
+  slots are filled with lowercase characters only
+- Character order is deterministically shuffled
 
 ## Installation
 
