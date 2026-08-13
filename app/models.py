@@ -10,8 +10,7 @@ from typing import Tuple
 class PasswordConstraints:
     """Immutable limits that control generated password shape."""
 
-    min_length: int
-    max_length: int
+    length: int
     upper: int
     lower: int
     digits: int

@@ -15,12 +15,12 @@ def test_generate_password_custom_length():
         "user1",
         "resource1",
         "secret1",
-        min_length=20,
-        max_length=20,
+        length=20,
         upper=3,
         lower=3,
         digits=3,
         specials=3,
+        mask=0,
     )
     assert len(password) == 20
 
@@ -30,14 +30,31 @@ def test_generate_password_quota_equals_length():
         "user1",
         "resource1",
         "secret1",
-        min_length=10,
-        max_length=10,
+        length=10,
         upper=3,
         lower=3,
         digits=2,
         specials=2,
+        mask=0,
     )
     assert len(password) == 10
+
+
+def test_generate_password_zero_quotas_filled_with_lower():
+    password = generate_password(
+        "user1",
+        "resource1",
+        "secret1",
+        length=10,
+        upper=0,
+        lower=0,
+        digits=0,
+        specials=0,
+        mask=0,
+    )
+    assert len(password) == 10
+    assert password.islower()
+    assert password.isalpha()
 
 
 def test_generate_password_invalid_constraints():
@@ -46,13 +63,27 @@ def test_generate_password_invalid_constraints():
             "user1",
             "resource1",
             "secret1",
-            min_length=5,
-            max_length=4,
+            length=5,
+        )
+
+
+def test_generate_password_mask_exceeds_specials_fails():
+    with pytest.raises(ValueError):
+        generate_password(
+            "user1",
+            "resource1",
+            "secret1",
+            length=16,
+            upper=0,
+            lower=0,
+            digits=0,
+            specials=1,
+            mask=2,
         )
 
 
 def test_generate_password_from_request_matches_api():
-    constraints = PasswordConstraints(14, 18, 2, 2, 1, 1, 0)
+    constraints = PasswordConstraints(18, 2, 2, 1, 1, 0)
     profile = PasswordProfile("userX", "resourceX", constraints)
     request = PasswordGenerationRequest(profile, "secretX")
 
@@ -61,8 +92,7 @@ def test_generate_password_from_request_matches_api():
         "userX",
         "resourceX",
         "secretX",
-        min_length=14,
-        max_length=18,
+        length=18,
         upper=2,
         lower=2,
         digits=1,

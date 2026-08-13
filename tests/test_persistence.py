@@ -10,13 +10,12 @@ from app.persistence import (
 )
 
 
-def _profile(min_length=24, max_length=32, generation_version=1):
+def _profile(length=24, generation_version=1):
     return PasswordProfile(
         username="user",
         resource="resource",
         constraints=PasswordConstraints(
-            min_length=min_length,
-            max_length=max_length,
+            length=length,
             upper=0,
             lower=0,
             digits=0,
@@ -52,8 +51,7 @@ def test_bump_updates_constraints(tmp_path):
     repository.create(_profile())
 
     new_constraints = PasswordConstraints(
-        min_length=8,
-        max_length=8,
+        length=8,
         upper=0,
         lower=0,
         digits=0,
@@ -64,8 +62,7 @@ def test_bump_updates_constraints(tmp_path):
     loaded = repository.get("user", "resource")
 
     assert result.generation_version == 2
-    assert loaded.constraints.min_length == 8
-    assert loaded.constraints.max_length == 8
+    assert loaded.constraints.length == 8
     assert loaded.generation_version == 2
 
 
@@ -121,24 +118,22 @@ def test_get_returns_default_version_for_legacy_profiles(tmp_path):
 
 def test_bump_always_increments_version(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
-    repository.create(_profile(min_length=24, max_length=32, generation_version=1))
+    repository.create(_profile(length=24, generation_version=1))
 
     result = repository.bump("user", "resource")
     loaded = repository.get("user", "resource")
 
     assert result.generation_version == 2
     assert loaded.generation_version == 2
-    assert loaded.constraints.min_length == 24
-    assert loaded.constraints.max_length == 32
+    assert loaded.constraints.length == 24
 
 
 def test_bump_records_version_history(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
-    repository.create(_profile(min_length=24, max_length=32, generation_version=1))
+    repository.create(_profile(length=24, generation_version=1))
 
     new_constraints = PasswordConstraints(
-        min_length=16,
-        max_length=16,
+        length=16,
         upper=0,
         lower=0,
         digits=0,
@@ -154,13 +149,12 @@ def test_bump_records_version_history(tmp_path):
     assert len(raw["version_history"]) == 1
     entry = raw["version_history"][0]
     assert entry["generation_version"] == 1
-    assert entry["constraints"]["min_length"] == 24
-    assert entry["constraints"]["max_length"] == 32
+    assert entry["constraints"]["length"] == 24
 
 
 def test_bump_version_only_does_not_record_history(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
-    repository.create(_profile(min_length=24, max_length=32, generation_version=1))
+    repository.create(_profile(length=24, generation_version=1))
 
     repository.bump("user", "resource")
 
@@ -173,14 +167,13 @@ def test_bump_version_only_does_not_record_history(tmp_path):
 
 def test_bump_multiple_times_accumulates_history(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
-    repository.create(_profile(min_length=24, max_length=32, generation_version=1))
+    repository.create(_profile(length=24, generation_version=1))
 
     repository.bump(
         "user",
         "resource",
         new_constraints=PasswordConstraints(
-            min_length=20,
-            max_length=20,
+            length=20,
             upper=0,
             lower=0,
             digits=0,
@@ -192,8 +185,7 @@ def test_bump_multiple_times_accumulates_history(tmp_path):
         "user",
         "resource",
         new_constraints=PasswordConstraints(
-            min_length=16,
-            max_length=16,
+            length=16,
             upper=0,
             lower=0,
             digits=0,
@@ -213,7 +205,7 @@ def test_bump_multiple_times_accumulates_history(tmp_path):
 
 def test_bump_no_constraints_change_still_increments(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
-    repository.create(_profile(min_length=24, max_length=32, generation_version=1))
+    repository.create(_profile(length=24, generation_version=1))
 
     result = repository.bump("user", "resource")
     loaded = repository.get("user", "resource")

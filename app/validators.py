@@ -6,20 +6,28 @@ from app.models import PasswordConstraints
 def validate_constraints(
     constraints: PasswordConstraints,
 ) -> PasswordConstraints:
-    if constraints.min_length <= 0:
-        raise ValueError("min_length must be positive.")
-    if constraints.max_length < constraints.min_length:
-        raise ValueError("max_length must be >= min_length.")
-    if constraints.mask < 0:
-        raise ValueError("mask must be non-negative.")
+    if constraints.length <= 0:
+        raise ValueError("length must be positive.")
+    for name, value in (
+        ("upper", constraints.upper),
+        ("lower", constraints.lower),
+        ("digits", constraints.digits),
+        ("specials", constraints.specials),
+        ("mask", constraints.mask),
+    ):
+        if value < 0:
+            raise ValueError(f"{name} must be non-negative.")
+    if constraints.mask > constraints.specials:
+        raise ValueError("mask must be <= specials.")
 
-    typed_sum = (
+    total = (
         constraints.upper
         + constraints.lower
         + constraints.digits
         + constraints.specials
+        + constraints.mask
     )
-    if typed_sum > constraints.max_length:
-        raise ValueError("Character quotas sum exceeds max_length.")
+    if total > constraints.length:
+        raise ValueError("Character quotas sum exceeds length.")
 
     return constraints

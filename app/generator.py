@@ -16,8 +16,7 @@ DIGIT_CHARS = "0123456789"
 SPECIAL_CHARS = "!@#$%^&*()-_=+[]{};:,.<>/?\\|\"'`~"
 
 DEFAULT_CONSTRAINTS = models.PasswordConstraints(
-    min_length=24,
-    max_length=32,
+    length=24,
     upper=0,
     lower=0,
     digits=0,
@@ -86,49 +85,27 @@ def _generate_with_constraints(
 ) -> str:
     seed = _derive_seed(username, resource, secret, generation_version)
     expander = SeedExpander(seed)
-    length_range = constraints.max_length - constraints.min_length + 1
-    step = expander.randbelow(length_range)
-    password_length = constraints.min_length + step
-    typed_sum = (
-        constraints.upper
-        + constraints.lower
-        + constraints.digits
-        + constraints.specials
-    )
-    password_length = max(password_length, typed_sum)
-    slack = max(0, password_length - typed_sum)
-    planned_mask = min(constraints.mask, slack)
-    target_length = password_length - planned_mask
 
     characters: List[str] = []
+    characters.extend(_pick_chars(expander, UPPER_CHARS, constraints.upper))
+    characters.extend(_pick_chars(expander, LOWER_CHARS, constraints.lower))
+    characters.extend(_pick_chars(expander, DIGIT_CHARS, constraints.digits))
+    characters.extend(
+        _pick_chars(expander, SPECIAL_CHARS, constraints.specials)
+    )
 
-    def add_chars(pool: str, count: int) -> None:
-        characters.extend(_pick_chars(expander, pool, count))
-
-    add_chars(UPPER_CHARS, constraints.upper)
-    add_chars(LOWER_CHARS, constraints.lower)
-    add_chars(DIGIT_CHARS, constraints.digits)
-    add_chars(SPECIAL_CHARS, constraints.specials)
-
-    while len(characters) < target_length:
-        pool_choice = expander.randbelow(4)
-        if pool_choice == 0:
-            add_chars(UPPER_CHARS, 1)
-        elif pool_choice == 1:
-            add_chars(LOWER_CHARS, 1)
-        elif pool_choice == 2:
-            add_chars(DIGIT_CHARS, 1)
-        else:
-            add_chars(SPECIAL_CHARS, 1)
-
-    characters, _ = _escape_specials(characters, planned_mask)
-
-    deficit = password_length - len(characters)
-    while deficit > 0:
-        add_chars(LOWER_CHARS, 1)
-        deficit -= 1
+    fill = (
+        constraints.length
+        - constraints.upper
+        - constraints.lower
+        - constraints.digits
+        - constraints.specials
+        - constraints.mask
+    )
+    characters.extend(_pick_chars(expander, LOWER_CHARS, fill))
 
     characters = _deterministic_shuffle(expander, characters)
+    characters, _ = _escape_specials(characters, constraints.mask)
     return "".join(characters)
 
 
@@ -153,8 +130,7 @@ def generate_password(
     username: str,
     resource: str,
     secret: str,
-    min_length: int = 12,
-    max_length: int = 16,
+    length: int = 16,
     upper: int = 2,
     lower: int = 2,
     digits: int = 2,
@@ -167,8 +143,7 @@ def generate_password(
             username=username,
             resource=resource,
             constraints=models.PasswordConstraints(
-                min_length=min_length,
-                max_length=max_length,
+                length=length,
                 upper=upper,
                 lower=lower,
                 digits=digits,
