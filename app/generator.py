@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import hashlib
 from typing import List
 
@@ -14,25 +13,6 @@ UPPER_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 LOWER_CHARS = "abcdefghijklmnopqrstuvwxyz"
 DIGIT_CHARS = "0123456789"
 SPECIAL_CHARS = "!@#$%^&*()-_=+[]{};:,.<>/?\\|\"'`~"
-
-DEFAULT_CONSTRAINTS = models.PasswordConstraints(
-    length=24,
-    upper=0,
-    lower=0,
-    digits=0,
-    specials=0,
-    mask=0,
-)
-
-
-def _legacy_password(
-    username: str, resource: str, secret: str, generation_version: int
-) -> str:
-    raw = f"{username}:{resource}:{generation_version}:{secret}"
-    data = raw.encode("utf-8")
-    b64_data = base64.urlsafe_b64encode(data)
-    digest = hashlib.sha256(b64_data).digest()
-    return base64.urlsafe_b64encode(digest).decode("utf-8")
 
 
 def _derive_seed(
@@ -117,9 +97,6 @@ def generate_password_from_request(
     resource = request.profile.resource
     secret = request.secret
     generation_version = request.profile.generation_version
-
-    if constraints == DEFAULT_CONSTRAINTS:
-        return _legacy_password(username, resource, secret, generation_version)
 
     return _generate_with_constraints(
         username, resource, secret, constraints, generation_version
