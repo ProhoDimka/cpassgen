@@ -1,3 +1,5 @@
+import json
+
 import click
 
 from app import models
@@ -111,6 +113,18 @@ def sync_profiles(ctx):
         if isinstance(error, SyncError) and error.conflict_info:
             click.echo(error.conflict_info, err=True)
         raise SystemExit(1) from error
+
+
+@cli.command("get-config")
+@click.pass_context
+def get_config(ctx):
+    """Print resolved configuration values (secret is omitted)."""
+    try:
+        config = load_config(ctx.obj["config"])
+    except ValueError as error:
+        click.echo(f"Error: {error}")
+        raise SystemExit(1) from error
+    click.echo(json.dumps(config.public_dict(), indent=2))
 
 
 @cli.command("create")

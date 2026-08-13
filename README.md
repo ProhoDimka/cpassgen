@@ -146,6 +146,12 @@ Sync profile storage with remote git repository:
 poetry run python -m app.main sync
 ```
 
+Print resolved configuration values (the secret `key_word` is omitted):
+
+```bash
+poetry run python -m app.main get-config
+```
+
 Notes:
 
 - `create` fails if profile already exists

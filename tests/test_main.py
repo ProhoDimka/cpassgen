@@ -507,3 +507,28 @@ def test_get_missing_config_file_fails(tmp_path):
 
     assert result.exit_code == 1
     assert "does not exist" in result.output
+
+
+def test_get_config_prints_non_secret_values(tmp_path):
+    runner = CliRunner()
+    config_file = tmp_path / "config.json"
+    config_file.write_text(
+        json.dumps(
+            {
+                "git_persistence_path": str(tmp_path),
+                "key_word": "config-secret",
+            }
+        )
+    )
+
+    result = runner.invoke(
+        cli,
+        args=["--config", str(config_file), "get-config"],
+        env={},
+    )
+
+    assert result.exit_code == 0
+    output = json.loads(result.output)
+    assert output == {"git_persistence_path": str(tmp_path)}
+    assert "key_word" not in output
+    assert "config-secret" not in result.output

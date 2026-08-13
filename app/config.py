@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 PERSISTENCE_PATH_ENV = "PASS_GEN_GIT_PERSISTENCE_PATH"
 KEY_WORD_ENV = "PASS_GEN_KEY_WORD"
 
 HOME_CONFIG_FILENAME = ".cpassgen/cpassgen.json"
+
+_SECRET_FIELDS = frozenset({"key_word"})
 
 _CONFIG_FIELDS = {
     "git_persistence_path": PERSISTENCE_PATH_ENV,
@@ -24,6 +26,15 @@ class Config:
 
     git_persistence_path: str | None
     key_word: str | None
+
+    def public_dict(self) -> dict:
+        """Return non-secret configuration values as a mapping."""
+
+        return {
+            field: value
+            for field, value in asdict(self).items()
+            if field not in _SECRET_FIELDS
+        }
 
 
 def default_config_path() -> Path:

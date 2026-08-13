@@ -3,7 +3,7 @@ import json
 import pytest
 
 from app import config as config_module
-from app.config import load_config
+from app.config import Config, load_config
 
 
 def _write_config(path, data):
@@ -111,3 +111,15 @@ def test_config_file_not_a_json_object_raises(monkeypatch, tmp_path):
 
     with pytest.raises(ValueError, match="JSON object"):
         load_config(str(bad))
+
+
+def test_public_dict_omits_secret_key_word():
+    config = Config(
+        git_persistence_path="/path/to/repo",
+        key_word="super-secret",
+    )
+
+    public = config.public_dict()
+
+    assert public == {"git_persistence_path": "/path/to/repo"}
+    assert "key_word" not in public
