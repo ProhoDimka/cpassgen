@@ -40,19 +40,46 @@ poetry install
 
 ## Configuration
 
-Required environment variable:
+`cpassgen` reads configuration from three sources, merged with the following
+priority (lowest to highest):
+
+1. A config file in the home directory: `~/.cpassgen.json`
+2. A config file passed via the global `--config PATH` argument
+3. Environment variables
+
+Config files are JSON objects:
+
+```json
+{
+  "git_persistence_path": "/path/to/profiles",
+  "key_word": "my-secret"
+}
+```
+
+Environment variables:
 
 - `PASS_GEN_GIT_PERSISTENCE_PATH` - directory where profiles are stored
-
-Optional environment variable:
-
 - `PASS_GEN_KEY_WORD` - secret for the `get` command (if set, prompt is skipped)
+
+Environment variables override config file values; the `--config` file
+overrides the home config file.
 
 Example:
 
 ```bash
 export PASS_GEN_GIT_PERSISTENCE_PATH="$HOME/.cpassgen"
 export PASS_GEN_KEY_WORD="my-secret"
+```
+
+Or via a config file:
+
+```bash
+cat > "$HOME/.cpassgen.json" <<'EOF'
+{
+  "git_persistence_path": "~/.cpassgen",
+  "key_word": "my-secret"
+}
+EOF
 ```
 
 ### Git sync setup
@@ -158,6 +185,7 @@ pytest tests/test_main.py
 
 ```text
 app/main.py         CLI entrypoint (Click group + commands)
+app/config.py       configuration loading (files + environment variables)
 app/generator.py    deterministic password generation logic
 app/persistence.py  profile repository and filesystem layout
 app/sync_service.py git sync, commit, push, pull, conflict detection

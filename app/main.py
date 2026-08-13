@@ -1,8 +1,9 @@
 import click
 
 from app import models
+from app.config import load_config
 from app.generator import generate_password_from_request
-from app.persistence import load_repository_from_env
+from app.persistence import load_repository_from_config
 from app.sync_service import SyncError, SyncService
 
 
@@ -80,15 +81,29 @@ def _offer_sync(repository, username: str, resource: str, action: str) -> None:
 
 
 @click.group()
-def cli():
+@click.option(
+    "--config",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help=(
+        "Path to a JSON config file. Takes priority over the home "
+        "config file, environment variables take priority over both."
+    ),
+)
+@click.pass_context
+def cli(ctx, config):
     """Manage password profiles and generate deterministic passwords."""
+    ctx.ensure_object(dict)
+    ctx.obj["config"] = config
 
 
 @cli.command("sync")
-def sync_profiles():
+@click.pass_context
+def sync_profiles(ctx):
     """Synchronize profile storage with the remote git repository."""
     try:
-        repository = load_repository_from_env()
+        config = load_config(ctx.obj["config"])
+        repository = load_repository_from_config(config)
         sync_svc = SyncService(repository._root)
         click.echo(sync_svc.sync())
     except (ValueError, SyncError) as error:
@@ -110,7 +125,9 @@ def sync_profiles():
     help="Generation version for the password derivation algorithm.",
 )
 @_constraint_options
+@click.pass_context
 def create_profile(
+    ctx,
     username: str,
     resource: str,
     generation_version: int,
@@ -133,7 +150,8 @@ def create_profile(
             mask,
             generation_version,
         )
-        repository = load_repository_from_env()
+        config = load_config(ctx.obj["config"])
+        repository = load_repository_from_config(config)
         repository.create(profile)
     except ValueError as error:
         click.echo(f"Error: {error}")
@@ -170,7 +188,9 @@ def _bump_constraint_options(func):
 @click.option("--username", "-u", prompt=True)
 @click.option("--resource", "-r", prompt=True)
 @_bump_constraint_options
+@click.pass_context
 def bump_profile(
+    ctx,
     username: str,
     resource: str,
     length: int | None,
@@ -181,7 +201,8 @@ def bump_profile(
     mask: int | None,
 ):
     try:
-        repository = load_repository_from_env()
+        config = load_config(ctx.obj["config"])
+        repository = load_repository_from_config(config)
         existing = repository.get(username, resource)
         constraints = existing.constraints
 
@@ -286,21 +307,22 @@ def bump_profile(
 @cli.command("get")
 @click.option("--username", "-u", prompt=True)
 @click.option("--resource", "-r", prompt=True)
-@click.option(
-    "--secret",
-    "-s",
-    envvar="PASS_GEN_KEY_WORD",
-    prompt=True,
-    hide_input=True,
-)
-def get_password(username: str, resource: str, secret: str):
+@click.option("--secret", "-s", default=None)
+@click.pass_context
+def get_password(ctx, username: str, resource: str, secret: str):
     """Generate password from persisted profile and secret."""
     try:
-        repository = load_repository_from_env()
+        config = load_config(ctx.obj["config"])
+        resolved_secret = secret
+        if resolved_secret is None:
+            resolved_secret = config.key_word
+        if resolved_secret is None:
+            resolved_secret = click.prompt("secret", hide_input=True)
+        repository = load_repository_from_config(config)
         profile = repository.get(username, resource)
         request = models.PasswordGenerationRequest(
             profile=profile,
-            secret=secret,
+            secret=resolved_secret,
         )
         password = generate_password_from_request(request)
     except ValueError as error:
