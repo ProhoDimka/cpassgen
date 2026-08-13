@@ -40,19 +40,46 @@ poetry install
 
 ## Configuration
 
-Required environment variable:
+`cpassgen` reads configuration from three sources, merged with the following
+priority (lowest to highest):
+
+1. A config file in the home directory: `~/.cpassgen/cpassgen.json`
+2. A config file passed via the global `--config PATH` argument
+3. Environment variables
+
+Config files are JSON objects:
+
+```json
+{
+  "git_persistence_path": "/path/to/profiles",
+  "key_word": "my-secret"
+}
+```
+
+Environment variables:
 
 - `PASS_GEN_GIT_PERSISTENCE_PATH` - directory where profiles are stored
-
-Optional environment variable:
-
 - `PASS_GEN_KEY_WORD` - secret for the `get` command (if set, prompt is skipped)
+
+Environment variables override config file values; the `--config` file
+overrides the home config file.
 
 Example:
 
 ```bash
-export PASS_GEN_GIT_PERSISTENCE_PATH="$HOME/.cpassgen"
+export PASS_GEN_GIT_PERSISTENCE_PATH="$HOME/.cpassgen/repo"
 export PASS_GEN_KEY_WORD="my-secret"
+```
+
+Or via a config file:
+
+```bash
+cat > "$HOME/.cpassgen/cpassgen.json" <<'EOF'
+{
+  "git_persistence_path": "~/.cpassgen/repo",
+  "key_word": "my-secret"
+}
+EOF
 ```
 
 ### Git sync setup
@@ -60,10 +87,10 @@ export PASS_GEN_KEY_WORD="my-secret"
 The `sync` command and automatic sync prompts require a git repository with an `origin` remote:
 
 ```bash
-export PASS_GEN_GIT_PERSISTENCE_PATH="$HOME/.cpassgen"
-git -C "$HOME/.cpassgen" init
-git -C "$HOME/.cpassgen" remote add origin <your-remote-url>
-git -C "$HOME/.cpassgen" commit --allow-empty -m "initial"  # optional
+export PASS_GEN_GIT_PERSISTENCE_PATH="$HOME/.cpassgen/repo"
+git -C "$HOME/.cpassgen/repo" init
+git -C "$HOME/.cpassgen/repo" remote add origin <your-remote-url>
+git -C "$HOME/.cpassgen/repo" commit --allow-empty -m "initial"  # optional
 ```
 
 ## CLI commands
@@ -119,6 +146,12 @@ Sync profile storage with remote git repository:
 poetry run python -m app.main sync
 ```
 
+Print resolved configuration values (the secret `key_word` is omitted):
+
+```bash
+poetry run python -m app.main get-config
+```
+
 Notes:
 
 - `create` fails if profile already exists
@@ -158,6 +191,7 @@ pytest tests/test_main.py
 
 ```text
 app/main.py         CLI entrypoint (Click group + commands)
+app/config.py       configuration loading (files + environment variables)
 app/generator.py    deterministic password generation logic
 app/persistence.py  profile repository and filesystem layout
 app/sync_service.py git sync, commit, push, pull, conflict detection

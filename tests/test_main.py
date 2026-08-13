@@ -1,3 +1,4 @@
+import json
 import subprocess
 
 from click.testing import CliRunner
@@ -342,3 +343,192 @@ def test_sync_cli_succeeds_up_to_date(tmp_path):
 
     assert result.exit_code == 0
     assert "Already up to date." in result.output
+
+
+def test_create_reads_persistence_path_from_config_file(tmp_path):
+    runner = CliRunner()
+    profiles = tmp_path / "profiles"
+    config_file = tmp_path / "config.json"
+    config_file.write_text(
+        json.dumps({"git_persistence_path": str(profiles)})
+    )
+
+    result = runner.invoke(
+        cli,
+        args=[
+            "--config",
+            str(config_file),
+            "create",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+        ],
+        env={},
+    )
+
+    assert result.exit_code == 0
+    assert "Profile created." in result.output
+    assert (profiles / "profiles").exists()
+
+
+def test_env_var_overrides_config_file_persistence_path(tmp_path):
+    runner = CliRunner()
+    config_file = tmp_path / "config.json"
+    config_file.write_text(
+        json.dumps({"git_persistence_path": str(tmp_path / "from_config")})
+    )
+    env_profiles = tmp_path / "env_profiles"
+
+    result = runner.invoke(
+        cli,
+        args=[
+            "--config",
+            str(config_file),
+            "create",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+        ],
+        env={"PASS_GEN_GIT_PERSISTENCE_PATH": str(env_profiles)},
+    )
+
+    assert result.exit_code == 0
+    assert (env_profiles / "profiles").exists()
+    assert not (tmp_path / "from_config").exists()
+
+
+def test_get_reads_secret_from_config_file(tmp_path):
+    runner = CliRunner()
+    config_file = tmp_path / "config.json"
+    config_file.write_text(
+        json.dumps(
+            {
+                "git_persistence_path": str(tmp_path),
+                "key_word": "config-secret",
+            }
+        )
+    )
+
+    runner.invoke(
+        cli,
+        args=[
+            "--config",
+            str(config_file),
+            "create",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+        ],
+        env={},
+    )
+    result = runner.invoke(
+        cli,
+        args=[
+            "--config",
+            str(config_file),
+            "get",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+        ],
+        env={},
+    )
+
+    assert result.exit_code == 0
+    assert len(result.output.strip()) > 0
+
+
+def test_get_cli_secret_overrides_config_key_word(tmp_path):
+    runner = CliRunner()
+    config_file = tmp_path / "config.json"
+    config_file.write_text(
+        json.dumps(
+            {
+                "git_persistence_path": str(tmp_path),
+                "key_word": "config-secret",
+            }
+        )
+    )
+
+    runner.invoke(
+        cli,
+        args=[
+            "--config",
+            str(config_file),
+            "create",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+        ],
+        env={},
+    )
+    result = runner.invoke(
+        cli,
+        args=[
+            "--config",
+            str(config_file),
+            "get",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+            "--secret",
+            "cli-secret",
+        ],
+        env={},
+    )
+
+    assert result.exit_code == 0
+    assert result.output.strip() != ""
+
+
+def test_get_missing_config_file_fails(tmp_path):
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        args=[
+            "--config",
+            str(tmp_path / "missing.json"),
+            "get",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+            "--secret",
+            "secret",
+        ],
+        env={},
+    )
+
+    assert result.exit_code == 1
+    assert "does not exist" in result.output
+
+
+def test_get_config_prints_non_secret_values(tmp_path):
+    runner = CliRunner()
+    config_file = tmp_path / "config.json"
+    config_file.write_text(
+        json.dumps(
+            {
+                "git_persistence_path": str(tmp_path),
+                "key_word": "config-secret",
+            }
+        )
+    )
+
+    result = runner.invoke(
+        cli,
+        args=["--config", str(config_file), "get-config"],
+        env={},
+    )
+
+    assert result.exit_code == 0
+    output = json.loads(result.output)
+    assert output == {"git_persistence_path": str(tmp_path)}
+    assert "key_word" not in output
+    assert "config-secret" not in result.output

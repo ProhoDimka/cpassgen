@@ -4,15 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from copy import deepcopy
 from dataclasses import asdict
 from pathlib import Path
 
+from app.config import PERSISTENCE_PATH_ENV, Config
 from app.models import PasswordConstraints, PasswordProfile
 from app.validators import validate_constraints
-
-PERSISTENCE_PATH_ENV = "PASS_GEN_GIT_PERSISTENCE_PATH"
 
 
 class ProfileNotFoundError(ValueError):
@@ -23,11 +21,14 @@ class ProfileAlreadyExistsError(ValueError):
     """Raised when attempting to create a profile that already exists."""
 
 
-def load_repository_from_env() -> "PasswordProfileRepository":
-    root = os.getenv(PERSISTENCE_PATH_ENV)
+def load_repository_from_config(
+    config: Config,
+) -> "PasswordProfileRepository":
+    root = config.git_persistence_path
     if not root:
         raise ValueError(
-            f"Environment variable {PERSISTENCE_PATH_ENV} must be set.",
+            "Persistence path is not configured. Set it via the "
+            f"{PERSISTENCE_PATH_ENV} environment variable or a config file.",
         )
     return PasswordProfileRepository(Path(root))
 
