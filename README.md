@@ -25,13 +25,16 @@ in the input string so different versions produce different passwords.
     - Input: `username:resource:version:secret`
     - Pipeline: URL-safe Base64 -> SHA256 -> URL-safe Base64
     - Triggered when profile constraints are default:
-        - `min_length=24`, `max_length=32`, `upper=0`, `lower=0`, `digits=0`, `specials=0`, `mask=0`
+        - `length=24`, `upper=0`, `lower=0`, `digits=0`, `specials=0`, `mask=0`
 
 2. Constraint mode (recommended)
     - Input seed: `SHA256(username:resource:version:secret)`
     - Seed is expanded by deterministic HMAC-SHA256 stream generator
-    - Password is built to satisfy quotas and range constraints:
-        - `min_length`, `max_length`, `upper`, `lower`, `digits`, `specials`, `mask`
+    - Password is built to satisfy quotas:
+        - `length`, `upper`, `lower`, `digits`, `specials`, `mask`
+    - `upper`, `lower`, `digits` and `specials` generate exactly that many
+      characters; `mask` escapes that many special characters; remaining
+      slots are filled with lowercase characters only
     - Character order is deterministically shuffled
 
 ## Installation
@@ -102,8 +105,7 @@ Update existing profile constraints:
 poetry run python -m app.main bump \
   --username user1 \
   --resource example.com \
-  --min-length 16 \
-  --max-length 20 \
+  --length 16 \
   --upper 2 \
   --lower 4 \
   --digits 2 \

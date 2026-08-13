@@ -9,8 +9,7 @@ from app.sync_service import SyncError, SyncService
 def _build_profile(
     username: str,
     resource: str,
-    min_length: int,
-    max_length: int,
+    length: int,
     upper: int,
     lower: int,
     digits: int,
@@ -22,8 +21,7 @@ def _build_profile(
         username=username,
         resource=resource,
         constraints=models.PasswordConstraints(
-            min_length=min_length,
-            max_length=max_length,
+            length=length,
             upper=upper,
             lower=lower,
             digits=digits,
@@ -36,8 +34,7 @@ def _build_profile(
 
 def _constraint_options(func):
     options = (
-        ("--min-length", None),
-        ("--max-length", None),
+        ("--length", None),
         ("--upper", None),
         ("--lower", None),
         ("--digits", "-d"),
@@ -45,8 +42,7 @@ def _constraint_options(func):
         ("--mask", "-m"),
     )
     defaults = {
-        "--min-length": 24,
-        "--max-length": 32,
+        "--length": 24,
         "--upper": 0,
         "--lower": 0,
         "--digits": 0,
@@ -118,8 +114,7 @@ def create_profile(
     username: str,
     resource: str,
     generation_version: int,
-    min_length: int,
-    max_length: int,
+    length: int,
     upper: int,
     lower: int,
     digits: int,
@@ -130,8 +125,7 @@ def create_profile(
         profile = _build_profile(
             username,
             resource,
-            min_length,
-            max_length,
+            length,
             upper,
             lower,
             digits,
@@ -160,8 +154,7 @@ def _bump_option(func, name: str, short: str | None = None):
 
 def _bump_constraint_options(func):
     options = (
-        ("--min-length", None),
-        ("--max-length", None),
+        ("--length", None),
         ("--upper", None),
         ("--lower", None),
         ("--digits", "-d"),
@@ -180,8 +173,7 @@ def _bump_constraint_options(func):
 def bump_profile(
     username: str,
     resource: str,
-    min_length: int | None,
-    max_length: int | None,
+    length: int | None,
     upper: int | None,
     lower: int | None,
     digits: int | None,
@@ -193,12 +185,7 @@ def bump_profile(
         existing = repository.get(username, resource)
         constraints = existing.constraints
 
-        new_min_length = (
-            min_length if min_length is not None else constraints.min_length
-        )
-        new_max_length = (
-            max_length if max_length is not None else constraints.max_length
-        )
+        new_length = length if length is not None else constraints.length
         new_upper = upper if upper is not None else constraints.upper
         new_lower = lower if lower is not None else constraints.lower
         new_digits = digits if digits is not None else constraints.digits
@@ -208,8 +195,7 @@ def bump_profile(
         new_mask = mask if mask is not None else constraints.mask
 
         new_constraints_unchanged = (
-            new_min_length == constraints.min_length
-            and new_max_length == constraints.max_length
+            new_length == constraints.length
             and new_upper == constraints.upper
             and new_lower == constraints.lower
             and new_digits == constraints.digits
@@ -226,16 +212,10 @@ def bump_profile(
             except click.Abort:
                 change = False
             if change:
-                new_min_length = click.prompt(
-                    "min_length",
+                new_length = click.prompt(
+                    "length",
                     type=int,
-                    default=constraints.min_length,
-                    show_default=True,
-                )
-                new_max_length = click.prompt(
-                    "max_length",
-                    type=int,
-                    default=constraints.max_length,
+                    default=constraints.length,
                     show_default=True,
                 )
                 new_upper = click.prompt(
@@ -272,8 +252,7 @@ def bump_profile(
                     username,
                     resource,
                     new_constraints=models.PasswordConstraints(
-                        min_length=new_min_length,
-                        max_length=new_max_length,
+                        length=new_length,
                         upper=new_upper,
                         lower=new_lower,
                         digits=new_digits,
@@ -288,8 +267,7 @@ def bump_profile(
                 username,
                 resource,
                 new_constraints=models.PasswordConstraints(
-                    min_length=new_min_length,
-                    max_length=new_max_length,
+                    length=new_length,
                     upper=new_upper,
                     lower=new_lower,
                     digits=new_digits,
