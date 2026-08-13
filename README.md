@@ -43,7 +43,7 @@ poetry install
 `cpassgen` reads configuration from three sources, merged with the following
 priority (lowest to highest):
 
-1. A config file in the home directory: `~/.cpassgen.json`
+1. A config file in the home directory: `~/.cpassgen/cpassgen.json`
 2. A config file passed via the global `--config PATH` argument
 3. Environment variables
 
@@ -67,16 +67,16 @@ overrides the home config file.
 Example:
 
 ```bash
-export PASS_GEN_GIT_PERSISTENCE_PATH="$HOME/.cpassgen"
+export PASS_GEN_GIT_PERSISTENCE_PATH="$HOME/.cpassgen/repo"
 export PASS_GEN_KEY_WORD="my-secret"
 ```
 
 Or via a config file:
 
 ```bash
-cat > "$HOME/.cpassgen.json" <<'EOF'
+cat > "$HOME/.cpassgen/cpassgen.json" <<'EOF'
 {
-  "git_persistence_path": "~/.cpassgen",
+  "git_persistence_path": "~/.cpassgen/repo",
   "key_word": "my-secret"
 }
 EOF
@@ -87,10 +87,10 @@ EOF
 The `sync` command and automatic sync prompts require a git repository with an `origin` remote:
 
 ```bash
-export PASS_GEN_GIT_PERSISTENCE_PATH="$HOME/.cpassgen"
-git -C "$HOME/.cpassgen" init
-git -C "$HOME/.cpassgen" remote add origin <your-remote-url>
-git -C "$HOME/.cpassgen" commit --allow-empty -m "initial"  # optional
+export PASS_GEN_GIT_PERSISTENCE_PATH="$HOME/.cpassgen/repo"
+git -C "$HOME/.cpassgen/repo" init
+git -C "$HOME/.cpassgen/repo" remote add origin <your-remote-url>
+git -C "$HOME/.cpassgen/repo" commit --allow-empty -m "initial"  # optional
 ```
 
 ## CLI commands

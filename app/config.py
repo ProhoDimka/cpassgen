@@ -10,7 +10,7 @@ from pathlib import Path
 PERSISTENCE_PATH_ENV = "PASS_GEN_GIT_PERSISTENCE_PATH"
 KEY_WORD_ENV = "PASS_GEN_KEY_WORD"
 
-HOME_CONFIG_FILENAME = ".cpassgen.json"
+HOME_CONFIG_FILENAME = ".cpassgen/cpassgen.json"
 
 _CONFIG_FIELDS = {
     "git_persistence_path": PERSISTENCE_PATH_ENV,
