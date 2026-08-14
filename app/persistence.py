@@ -85,14 +85,12 @@ class PasswordProfileRepository:
         )
 
         history = deepcopy(existing_data.get("version_history", []))
-        any_change = constraints != existing_constraints
-        if any_change:
-            history.append(
-                {
-                    "generation_version": existing_version,
-                    "constraints": existing_data["constraints"],
-                }
-            )
+        history.append(
+            {
+                "generation_version": existing_version,
+                "constraints": existing_data["constraints"],
+            }
+        )
 
         payload = self._make_payload(
             validated_profile,

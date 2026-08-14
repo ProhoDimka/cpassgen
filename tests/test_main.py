@@ -196,6 +196,45 @@ def test_bump_without_constraints_increments_version(tmp_path):
     assert "bumped to version 2" in bump_result.output
 
 
+def test_bump_records_history_when_constraints_unchanged(tmp_path):
+    runner = CliRunner()
+    env = {"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)}
+
+    create_result = runner.invoke(
+        cli,
+        args=[
+            "create",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+            "--length",
+            "24",
+            "--upper",
+            "3",
+            "--digits",
+            "5",
+        ],
+        env=env,
+    )
+    bump_result = runner.invoke(
+        cli,
+        args=["bump", "--username", "user1", "--resource", "resource1"],
+        env=env,
+    )
+
+    json_files = list((tmp_path / "profiles").rglob("*.json"))
+    raw = json.loads(json_files[0].read_text(encoding="utf-8"))
+
+    assert create_result.exit_code == 0
+    assert bump_result.exit_code == 0
+    assert raw["generation_version"] == 2
+    assert len(raw["version_history"]) == 1
+    assert raw["version_history"][0]["generation_version"] == 1
+    assert raw["version_history"][0]["constraints"]["digits"] == 5
+    assert raw["version_history"][0]["constraints"]["upper"] == 3
+
+
 def test_bump_missing_profile_fails(tmp_path):
     runner = CliRunner()
     env = {"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)}

@@ -152,7 +152,7 @@ def test_bump_records_version_history(tmp_path):
     assert entry["constraints"]["length"] == 24
 
 
-def test_bump_version_only_does_not_record_history(tmp_path):
+def test_bump_version_only_records_previous_version(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
     repository.create(_profile(length=24, generation_version=1))
 
@@ -162,7 +162,10 @@ def test_bump_version_only_does_not_record_history(tmp_path):
     raw = json.loads(json_files[0].read_text(encoding="utf-8"))
 
     assert raw["generation_version"] == 2
-    assert len(raw.get("version_history", [])) == 0
+    assert len(raw["version_history"]) == 1
+    entry = raw["version_history"][0]
+    assert entry["generation_version"] == 1
+    assert entry["constraints"]["length"] == 24
 
 
 def test_bump_multiple_times_accumulates_history(tmp_path):
