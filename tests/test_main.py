@@ -5,6 +5,8 @@ from click.testing import CliRunner
 
 from app.main import cli
 
+CONSTRAINTS_PROMPT_INPUT = "\n" * 6
+
 
 def _setup_git_repo_with_remote(tmp_path, branch="main"):
     local = tmp_path / "local"
@@ -80,6 +82,7 @@ def test_create_then_get_password_consistency_default_cli(tmp_path):
         cli,
         args=["create", "--username", "user1", "--resource", "resource1"],
         env=env,
+        input=CONSTRAINTS_PROMPT_INPUT,
     )
     result1 = runner.invoke(
         cli,
@@ -122,6 +125,7 @@ def test_bump_profile_constraints_then_get_password(tmp_path):
         cli,
         args=["create", "--username", "user1", "--resource", "resource1"],
         env=env,
+        input=CONSTRAINTS_PROMPT_INPUT,
     )
     bump_result = runner.invoke(
         cli,
@@ -174,6 +178,7 @@ def test_bump_without_constraints_increments_version(tmp_path):
         cli,
         args=["create", "--username", "user1", "--resource", "resource1"],
         env=env,
+        input=CONSTRAINTS_PROMPT_INPUT,
     )
     bump_result = runner.invoke(
         cli,
@@ -189,6 +194,45 @@ def test_bump_without_constraints_increments_version(tmp_path):
 
     assert bump_result.exit_code == 0
     assert "bumped to version 2" in bump_result.output
+
+
+def test_bump_records_history_when_constraints_unchanged(tmp_path):
+    runner = CliRunner()
+    env = {"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)}
+
+    create_result = runner.invoke(
+        cli,
+        args=[
+            "create",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+            "--length",
+            "24",
+            "--upper",
+            "3",
+            "--digits",
+            "5",
+        ],
+        env=env,
+    )
+    bump_result = runner.invoke(
+        cli,
+        args=["bump", "--username", "user1", "--resource", "resource1"],
+        env=env,
+    )
+
+    json_files = list((tmp_path / "profiles").rglob("*.json"))
+    raw = json.loads(json_files[0].read_text(encoding="utf-8"))
+
+    assert create_result.exit_code == 0
+    assert bump_result.exit_code == 0
+    assert raw["generation_version"] == 2
+    assert len(raw["version_history"]) == 1
+    assert raw["version_history"][0]["generation_version"] == 1
+    assert raw["version_history"][0]["constraints"]["digits"] == 5
+    assert raw["version_history"][0]["constraints"]["upper"] == 3
 
 
 def test_bump_missing_profile_fails(tmp_path):
@@ -227,10 +271,40 @@ def test_create_with_custom_generation_version(tmp_path):
             "3",
         ],
         env=env,
+        input=CONSTRAINTS_PROMPT_INPUT,
     )
 
     assert result.exit_code == 0
     assert "Profile created." in result.output
+
+
+def test_create_prompts_for_constraints_interactively(tmp_path):
+    runner = CliRunner()
+    env = {"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)}
+
+    create_result = runner.invoke(
+        cli,
+        args=["create", "--username", "user1", "--resource", "resource1"],
+        env=env,
+        input="16\n2\n2\n2\n2\n0\n",
+    )
+    get_result = runner.invoke(
+        cli,
+        args=[
+            "get",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+            "--secret",
+            "secret1",
+        ],
+        env=env,
+    )
+
+    assert create_result.exit_code == 0
+    assert get_result.exit_code == 0
+    assert len(get_result.output.strip()) == 16
 
 
 def test_get_requires_existing_profile(tmp_path):
@@ -269,6 +343,7 @@ def test_generate_password_respects_version_from_profile(tmp_path):
             "5",
         ],
         env=env,
+        input=CONSTRAINTS_PROMPT_INPUT,
     )
     pw1 = runner.invoke(
         cli,
@@ -325,6 +400,7 @@ def test_create_does_not_prompt_sync_in_non_tty(tmp_path):
         cli,
         args=["create", "--username", "user1", "--resource", "resource1"],
         env=env,
+        input=CONSTRAINTS_PROMPT_INPUT,
     )
 
     assert result.exit_code == 0
@@ -349,9 +425,7 @@ def test_create_reads_persistence_path_from_config_file(tmp_path):
     runner = CliRunner()
     profiles = tmp_path / "profiles"
     config_file = tmp_path / "config.json"
-    config_file.write_text(
-        json.dumps({"git_persistence_path": str(profiles)})
-    )
+    config_file.write_text(json.dumps({"git_persistence_path": str(profiles)}))
 
     result = runner.invoke(
         cli,
@@ -365,6 +439,7 @@ def test_create_reads_persistence_path_from_config_file(tmp_path):
             "resource1",
         ],
         env={},
+        input=CONSTRAINTS_PROMPT_INPUT,
     )
 
     assert result.exit_code == 0
@@ -392,6 +467,7 @@ def test_env_var_overrides_config_file_persistence_path(tmp_path):
             "resource1",
         ],
         env={"PASS_GEN_GIT_PERSISTENCE_PATH": str(env_profiles)},
+        input=CONSTRAINTS_PROMPT_INPUT,
     )
 
     assert result.exit_code == 0
@@ -423,6 +499,7 @@ def test_get_reads_secret_from_config_file(tmp_path):
             "resource1",
         ],
         env={},
+        input=CONSTRAINTS_PROMPT_INPUT,
     )
     result = runner.invoke(
         cli,
@@ -466,6 +543,7 @@ def test_get_cli_secret_overrides_config_key_word(tmp_path):
             "resource1",
         ],
         env={},
+        input=CONSTRAINTS_PROMPT_INPUT,
     )
     result = runner.invoke(
         cli,

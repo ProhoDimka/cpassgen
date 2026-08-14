@@ -154,6 +154,7 @@ poetry run python -m app.main get-config
 
 Notes:
 
+- `create` prompts for constraints interactively (with defaults); they can also be passed via `--length`, `--upper`, `--lower`, `--digits`, `--specials`, `--mask`
 - `create` fails if profile already exists
 - `bump` fails if profile does not exist
 - `get` fails if profile does not exist

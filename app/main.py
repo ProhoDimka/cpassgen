@@ -8,59 +8,113 @@ from app.generator import generate_password_from_request
 from app.persistence import load_repository_from_config
 from app.sync_service import SyncError, SyncService
 
+_CONSTRAINT_OPTIONS = (
+    ("--length", None),
+    ("--upper", None),
+    ("--lower", None),
+    ("--digits", "-d"),
+    ("--specials", None),
+    ("--mask", "-m"),
+)
+
+DEFAULT_CONSTRAINTS = models.PasswordConstraints(
+    length=24,
+    upper=0,
+    lower=0,
+    digits=0,
+    specials=0,
+    mask=0,
+)
+
 
 def _build_profile(
     username: str,
     resource: str,
-    length: int,
-    upper: int,
-    lower: int,
-    digits: int,
-    specials: int,
-    mask: int,
+    constraints: models.PasswordConstraints,
     generation_version: int,
 ):
     return models.PasswordProfile(
         username=username,
         resource=resource,
-        constraints=models.PasswordConstraints(
-            length=length,
-            upper=upper,
-            lower=lower,
-            digits=digits,
-            specials=specials,
-            mask=mask,
-        ),
+        constraints=constraints,
         generation_version=generation_version,
     )
 
 
+def _constraint_option(func, name: str, short: str | None = None):
+    args = [name] if short is None else [short, name]
+    return click.option(
+        *args,
+        type=int,
+        default=None,
+        help="New constraint value (leave unset to prompt interactively).",
+    )(func)
+
+
 def _constraint_options(func):
-    options = (
-        ("--length", None),
-        ("--upper", None),
-        ("--lower", None),
-        ("--digits", "-d"),
-        ("--specials", None),
-        ("--mask", "-m"),
-    )
-    defaults = {
-        "--length": 24,
-        "--upper": 0,
-        "--lower": 0,
-        "--digits": 0,
-        "--specials": 0,
-        "--mask": 0,
-    }
-    for long_name, short_name in reversed(options):
-        args = [long_name] if short_name is None else [short_name, long_name]
-        func = click.option(
-            *args,
-            type=int,
-            default=defaults[long_name],
-            show_default=True,
-        )(func)
+    for long_name, short_name in reversed(_CONSTRAINT_OPTIONS):
+        func = _constraint_option(func, long_name, short_name)
     return func
+
+
+def _prompt_constraints(
+    defaults: models.PasswordConstraints,
+) -> models.PasswordConstraints:
+    length = click.prompt(
+        "length", type=int, default=defaults.length, show_default=True
+    )
+    upper = click.prompt(
+        "upper", type=int, default=defaults.upper, show_default=True
+    )
+    lower = click.prompt(
+        "lower", type=int, default=defaults.lower, show_default=True
+    )
+    digits = click.prompt(
+        "digits", type=int, default=defaults.digits, show_default=True
+    )
+    specials = click.prompt(
+        "specials", type=int, default=defaults.specials, show_default=True
+    )
+    mask = click.prompt(
+        "mask", type=int, default=defaults.mask, show_default=True
+    )
+    return models.PasswordConstraints(
+        length=length,
+        upper=upper,
+        lower=lower,
+        digits=digits,
+        specials=specials,
+        mask=mask,
+    )
+
+
+def _resolve_create_constraints(
+    length: int | None,
+    upper: int | None,
+    lower: int | None,
+    digits: int | None,
+    specials: int | None,
+    mask: int | None,
+) -> models.PasswordConstraints:
+    values = (length, upper, lower, digits, specials, mask)
+    if any(value is not None for value in values):
+        return models.PasswordConstraints(
+            length=(
+                length if length is not None else DEFAULT_CONSTRAINTS.length
+            ),
+            upper=upper if upper is not None else DEFAULT_CONSTRAINTS.upper,
+            lower=lower if lower is not None else DEFAULT_CONSTRAINTS.lower,
+            digits=(
+                digits if digits is not None else DEFAULT_CONSTRAINTS.digits
+            ),
+            specials=(
+                specials
+                if specials is not None
+                else DEFAULT_CONSTRAINTS.specials
+            ),
+            mask=mask if mask is not None else DEFAULT_CONSTRAINTS.mask,
+        )
+    return _prompt_constraints(DEFAULT_CONSTRAINTS)
 
 
 def _offer_sync(repository, username: str, resource: str, action: str) -> None:
@@ -145,23 +199,26 @@ def create_profile(
     username: str,
     resource: str,
     generation_version: int,
-    length: int,
-    upper: int,
-    lower: int,
-    digits: int,
-    specials: int,
-    mask: int,
+    length: int | None,
+    upper: int | None,
+    lower: int | None,
+    digits: int | None,
+    specials: int | None,
+    mask: int | None,
 ):
     try:
-        profile = _build_profile(
-            username,
-            resource,
+        constraints = _resolve_create_constraints(
             length,
             upper,
             lower,
             digits,
             specials,
             mask,
+        )
+        profile = _build_profile(
+            username,
+            resource,
+            constraints,
             generation_version,
         )
         config = load_config(ctx.obj["config"])
@@ -174,34 +231,10 @@ def create_profile(
     _offer_sync(repository, username, resource, "create")
 
 
-def _bump_option(func, name: str, short: str | None = None):
-    args = [name] if short is None else [short, name]
-    return click.option(
-        *args,
-        type=int,
-        default=None,
-        help="New constraint value (leave unset to keep existing).",
-    )(func)
-
-
-def _bump_constraint_options(func):
-    options = (
-        ("--length", None),
-        ("--upper", None),
-        ("--lower", None),
-        ("--digits", "-d"),
-        ("--specials", None),
-        ("--mask", "-m"),
-    )
-    for long_name, short_name in reversed(options):
-        func = _bump_option(func, long_name, short_name)
-    return func
-
-
 @cli.command("bump")
 @click.option("--username", "-u", prompt=True)
 @click.option("--resource", "-r", prompt=True)
-@_bump_constraint_options
+@_constraint_options
 @click.pass_context
 def bump_profile(
     ctx,
@@ -247,53 +280,10 @@ def bump_profile(
             except click.Abort:
                 change = False
             if change:
-                new_length = click.prompt(
-                    "length",
-                    type=int,
-                    default=constraints.length,
-                    show_default=True,
-                )
-                new_upper = click.prompt(
-                    "upper",
-                    type=int,
-                    default=constraints.upper,
-                    show_default=True,
-                )
-                new_lower = click.prompt(
-                    "lower",
-                    type=int,
-                    default=constraints.lower,
-                    show_default=True,
-                )
-                new_digits = click.prompt(
-                    "digits",
-                    type=int,
-                    default=constraints.digits,
-                    show_default=True,
-                )
-                new_specials = click.prompt(
-                    "specials",
-                    type=int,
-                    default=constraints.specials,
-                    show_default=True,
-                )
-                new_mask = click.prompt(
-                    "mask",
-                    type=int,
-                    default=constraints.mask,
-                    show_default=True,
-                )
                 result = repository.bump(
                     username,
                     resource,
-                    new_constraints=models.PasswordConstraints(
-                        length=new_length,
-                        upper=new_upper,
-                        lower=new_lower,
-                        digits=new_digits,
-                        specials=new_specials,
-                        mask=new_mask,
-                    ),
+                    new_constraints=_prompt_constraints(constraints),
                 )
             else:
                 result = repository.bump(username, resource)
