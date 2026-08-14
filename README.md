@@ -98,13 +98,13 @@ git -C "$HOME/.cpassgen/repo" commit --allow-empty -m "initial"  # optional
 Run CLI:
 
 ```bash
-poetry run python -m app.main --help
+cpassgen --help
 ```
 
 Create profile:
 
 ```bash
-poetry run python -m app.main create \
+cpassgen create \
   --username user1 \
   --resource example.com
 ```
@@ -112,7 +112,7 @@ poetry run python -m app.main create \
 Create profile with custom generation version:
 
 ```bash
-poetry run python -m app.main create \
+cpassgen create \
   --username user1 \
   --resource example.com \
   --generation-version 3
@@ -121,7 +121,7 @@ poetry run python -m app.main create \
 Update existing profile constraints:
 
 ```bash
-poetry run python -m app.main bump \
+cpassgen bump \
   --username user1 \
   --resource example.com \
   --length 16 \
@@ -135,7 +135,7 @@ poetry run python -m app.main bump \
 Generate password from profile:
 
 ```bash
-poetry run python -m app.main get \
+cpassgen get \
   --username user1 \
   --resource example.com
 ```
@@ -143,13 +143,13 @@ poetry run python -m app.main get \
 Sync profile storage with remote git repository:
 
 ```bash
-poetry run python -m app.main sync
+cpassgen sync
 ```
 
 Print resolved configuration values (the secret `key_word` is omitted):
 
 ```bash
-poetry run python -m app.main get-config
+cpassgen get-config
 ```
 
 Notes:

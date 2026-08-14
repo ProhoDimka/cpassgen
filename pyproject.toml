@@ -5,6 +5,9 @@ description = "CLI утилита управления паролями"
 authors = ["prohodimka.pro <you@example.com>"]
 packages = [{include = "app"}]
 
+[tool.poetry.scripts]
+cpassgen = "app.main:cli"
+
 [tool.poetry.dependencies]
 python = "^3.12"
 click = "^8.0"
