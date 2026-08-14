@@ -6,11 +6,17 @@ import hashlib
 import json
 from copy import deepcopy
 from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.config import PERSISTENCE_PATH_ENV, Config
 from app.models import PasswordConstraints, PasswordProfile
 from app.validators import validate_constraints
+
+
+def now_iso() -> str:
+    """Return current UTC time as an ISO-8601 string."""
+    return datetime.now(timezone.utc).isoformat()
 
 
 class ProfileNotFoundError(ValueError):
@@ -49,7 +55,11 @@ class PasswordProfileRepository:
             raise ProfileAlreadyExistsError(
                 "PasswordProfile already exists for given username/resource.",
             )
-        payload = self._make_payload(validated_profile, version_history=[])
+        payload = self._make_payload(
+            validated_profile,
+            version_history=[],
+            created_at=now_iso(),
+        )
         self._write_payload(path, payload)
         return validated_profile
 
@@ -89,12 +99,14 @@ class PasswordProfileRepository:
             {
                 "generation_version": existing_version,
                 "constraints": existing_data["constraints"],
+                "created_at": existing_data.get("created_at"),
             }
         )
 
         payload = self._make_payload(
             validated_profile,
             version_history=history,
+            created_at=now_iso(),
         )
         self._write_payload(path, payload)
         return validated_profile
@@ -131,9 +143,14 @@ class PasswordProfileRepository:
         return self._profiles_root / shard / f"{key}.json"
 
     @staticmethod
-    def _make_payload(profile: PasswordProfile, version_history: list) -> dict:
+    def _make_payload(
+        profile: PasswordProfile,
+        version_history: list,
+        created_at: str,
+    ) -> dict:
         payload = asdict(profile)
         payload["version_history"] = version_history
+        payload["created_at"] = created_at
         return payload
 
     def _write_payload(self, path: Path, payload: dict) -> None:

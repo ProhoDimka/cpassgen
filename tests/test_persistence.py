@@ -26,6 +26,11 @@ def _profile(length=24, generation_version=1):
     )
 
 
+def _read_raw(tmp_path):
+    json_files = list((tmp_path / "profiles").rglob("*.json"))
+    return json.loads(json_files[0].read_text(encoding="utf-8"))
+
+
 def test_create_and_get_profile(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
     profile = _profile()
@@ -131,6 +136,7 @@ def test_bump_always_increments_version(tmp_path):
 def test_bump_records_version_history(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
     repository.create(_profile(length=24, generation_version=1))
+    created_at = _read_raw(tmp_path)["created_at"]
 
     new_constraints = PasswordConstraints(
         length=16,
@@ -142,35 +148,38 @@ def test_bump_records_version_history(tmp_path):
     )
     repository.bump("user", "resource", new_constraints=new_constraints)
 
-    json_files = list((tmp_path / "profiles").rglob("*.json"))
-    raw = json.loads(json_files[0].read_text(encoding="utf-8"))
+    raw = _read_raw(tmp_path)
 
     assert "version_history" in raw
     assert len(raw["version_history"]) == 1
     entry = raw["version_history"][0]
     assert entry["generation_version"] == 1
     assert entry["constraints"]["length"] == 24
+    assert entry["created_at"] == created_at
+    assert raw["created_at"] != created_at
 
 
 def test_bump_version_only_records_previous_version(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
     repository.create(_profile(length=24, generation_version=1))
+    created_at = _read_raw(tmp_path)["created_at"]
 
     repository.bump("user", "resource")
 
-    json_files = list((tmp_path / "profiles").rglob("*.json"))
-    raw = json.loads(json_files[0].read_text(encoding="utf-8"))
+    raw = _read_raw(tmp_path)
 
     assert raw["generation_version"] == 2
     assert len(raw["version_history"]) == 1
     entry = raw["version_history"][0]
     assert entry["generation_version"] == 1
     assert entry["constraints"]["length"] == 24
+    assert entry["created_at"] == created_at
 
 
 def test_bump_multiple_times_accumulates_history(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
     repository.create(_profile(length=24, generation_version=1))
+    created_at_v1 = _read_raw(tmp_path)["created_at"]
 
     repository.bump(
         "user",
@@ -184,6 +193,7 @@ def test_bump_multiple_times_accumulates_history(tmp_path):
             mask=0,
         ),
     )
+    created_at_v2 = _read_raw(tmp_path)["created_at"]
     repository.bump(
         "user",
         "resource",
@@ -197,13 +207,14 @@ def test_bump_multiple_times_accumulates_history(tmp_path):
         ),
     )
 
-    json_files = list((tmp_path / "profiles").rglob("*.json"))
-    raw = json.loads(json_files[0].read_text(encoding="utf-8"))
+    raw = _read_raw(tmp_path)
 
     assert len(raw["version_history"]) == 2
     assert raw["version_history"][0]["generation_version"] == 1
     assert raw["version_history"][1]["generation_version"] == 2
     assert raw["generation_version"] == 3
+    assert raw["version_history"][0]["created_at"] == created_at_v1
+    assert raw["version_history"][1]["created_at"] == created_at_v2
 
 
 def test_bump_no_constraints_change_still_increments(tmp_path):
@@ -216,3 +227,45 @@ def test_bump_no_constraints_change_still_increments(tmp_path):
     assert result.generation_version == 2
     assert loaded.generation_version == 2
     assert loaded.constraints == result.constraints
+
+
+def test_create_writes_created_at(tmp_path):
+    repository = PasswordProfileRepository(tmp_path)
+    repository.create(_profile())
+
+    raw = _read_raw(tmp_path)
+
+    assert "created_at" in raw
+    assert raw["created_at"].endswith("+00:00")
+
+
+def test_history_entry_carries_previous_created_at(tmp_path):
+    repository = PasswordProfileRepository(tmp_path)
+    repository.create(_profile())
+    created_at = _read_raw(tmp_path)["created_at"]
+
+    repository.bump("user", "resource")
+
+    raw = _read_raw(tmp_path)
+    assert raw["version_history"][0]["created_at"] == created_at
+    assert raw["created_at"] != created_at
+
+
+def test_bump_legacy_profile_without_created_at_does_not_crash(tmp_path):
+    repository = PasswordProfileRepository(tmp_path)
+    repository.create(_profile())
+
+    json_files = list((tmp_path / "profiles").rglob("*.json"))
+    raw = json.loads(json_files[0].read_text(encoding="utf-8"))
+    del raw["created_at"]
+    json_files[0].write_text(
+        json.dumps(raw, ensure_ascii=True, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    result = repository.bump("user", "resource")
+
+    raw = _read_raw(tmp_path)
+    assert result.generation_version == 2
+    assert raw["version_history"][0]["created_at"] is None
+    assert raw["created_at"] is not None
