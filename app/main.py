@@ -153,6 +153,32 @@ def cli(ctx, config):
     ctx.obj["config"] = config
 
 
+@cli.command("list")
+@click.pass_context
+def list_profiles(ctx):
+    """List stored password profiles."""
+    try:
+        config = load_config(ctx.obj["config"])
+        repository = load_repository_from_config(config)
+        entries = repository.list_profiles()
+    except ValueError as error:
+        click.echo(f"Error: {error}")
+        raise SystemExit(1) from error
+
+    if not entries:
+        click.echo("No profiles found")
+        return
+
+    for profile, created_at in entries:
+        line = (
+            f"{profile.username}@{profile.resource}  "
+            f"v{profile.generation_version}"
+        )
+        if created_at is not None:
+            line += f"  {created_at}"
+        click.echo(line)
+
+
 @cli.command("sync")
 @click.pass_context
 def sync_profiles(ctx):
