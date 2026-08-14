@@ -7,7 +7,7 @@ set every time.
 
 ## What is new
 
-- Multi-command CLI: `create`, `bump`, `get`, `sync`
+- Multi-command CLI: `create`, `bump`, `get`, `list`, `sync`
 - File-based profile repository with deterministic sharded layout
 - Git sync: add/commit/push changes to remote, pull updates, conflict detection
 - Constraint-driven password generation with stable pseudo-random expansion
@@ -140,6 +140,12 @@ cpassgen get \
   --resource example.com
 ```
 
+List stored profiles (one line per profile: `username@resource v<version> <created_at>`):
+
+```bash
+cpassgen list
+```
+
 Sync profile storage with remote git repository:
 
 ```bash
@@ -158,6 +164,7 @@ Notes:
 - `create` fails if profile already exists
 - `bump` fails if profile does not exist
 - `get` fails if profile does not exist
+- `list` prints `No profiles found` when the repository is empty
 - after successful `create` or `bump`, the tool prompts to sync changes with the remote repository (skipped in non-interactive mode)
 - `sync` commits uncommitted changes, pulls remote updates via rebase, pushes local changes; on conflict prints detailed resolution instructions
 - all failures are returned as human-readable `Error: ...` messages
