@@ -118,6 +118,20 @@ class PasswordProfileRepository:
                 "PasswordProfile does not exist for given username/resource.",
             )
         raw_data = json.loads(path.read_text(encoding="utf-8"))
+        return self._profile_from_raw(raw_data)
+
+    def list_profiles(self) -> list[tuple[PasswordProfile, str | None]]:
+        if not self._profiles_root.exists():
+            return []
+        entries = []
+        for path in sorted(self._profiles_root.glob("**/*.json")):
+            raw_data = json.loads(path.read_text(encoding="utf-8"))
+            profile = self._profile_from_raw(raw_data)
+            entries.append((profile, raw_data.get("created_at")))
+        return entries
+
+    @staticmethod
+    def _profile_from_raw(raw_data: dict) -> PasswordProfile:
         constraints = PasswordConstraints(**raw_data["constraints"])
         return PasswordProfile(
             username=raw_data["username"],

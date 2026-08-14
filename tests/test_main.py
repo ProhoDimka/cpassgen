@@ -587,6 +587,45 @@ def test_get_missing_config_file_fails(tmp_path):
     assert "does not exist" in result.output
 
 
+def test_list_empty_repo_shows_no_profiles(tmp_path):
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        args=["list"],
+        env={"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)},
+    )
+
+    assert result.exit_code == 0
+    assert "No profiles found" in result.output
+
+
+def test_list_shows_profiles_with_version_and_created_at(tmp_path):
+    runner = CliRunner()
+    env = {"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)}
+
+    runner.invoke(
+        cli,
+        args=[
+            "create",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+            "--generation-version",
+            "3",
+        ],
+        env=env,
+        input=CONSTRAINTS_PROMPT_INPUT,
+    )
+
+    result = runner.invoke(cli, args=["list"], env=env)
+
+    assert result.exit_code == 0
+    assert "user1@resource1" in result.output
+    assert "v3" in result.output
+    assert "+00:00" in result.output
+
+
 def test_get_config_prints_non_secret_values(tmp_path):
     runner = CliRunner()
     config_file = tmp_path / "config.json"

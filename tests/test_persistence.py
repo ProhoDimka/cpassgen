@@ -251,6 +251,43 @@ def test_history_entry_carries_previous_created_at(tmp_path):
     assert raw["created_at"] != created_at
 
 
+def test_list_profiles_empty_when_root_missing(tmp_path):
+    repository = PasswordProfileRepository(tmp_path)
+
+    assert repository.list_profiles() == []
+
+
+def test_list_profiles_returns_created_profiles_with_created_at(tmp_path):
+    repository = PasswordProfileRepository(tmp_path)
+    repository.create(
+        PasswordProfile(
+            username="alice",
+            resource="example.com",
+            constraints=PasswordConstraints(
+                length=24, upper=0, lower=0, digits=0, specials=0, mask=0
+            ),
+            generation_version=1,
+        )
+    )
+    repository.create(
+        PasswordProfile(
+            username="bob",
+            resource="other.com",
+            constraints=PasswordConstraints(
+                length=16, upper=0, lower=0, digits=0, specials=0, mask=0
+            ),
+            generation_version=2,
+        )
+    )
+
+    entries = repository.list_profiles()
+
+    assert len(entries) == 2
+    profiles = {profile.username for profile, _ in entries}
+    assert profiles == {"alice", "bob"}
+    assert all(created_at is not None for _, created_at in entries)
+
+
 def test_bump_legacy_profile_without_created_at_does_not_crash(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
     repository.create(_profile())
