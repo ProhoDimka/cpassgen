@@ -288,6 +288,52 @@ def test_list_profiles_returns_created_profiles_with_created_at(tmp_path):
     assert all(created_at is not None for _, created_at in entries)
 
 
+def test_history_returns_current_profile_and_empty_history(tmp_path):
+    repository = PasswordProfileRepository(tmp_path)
+    repository.create(_profile(length=24, generation_version=1))
+
+    result = repository.history("user", "resource")
+
+    assert result.profile.generation_version == 1
+    assert result.profile.constraints.length == 24
+    assert result.created_at is not None
+    assert result.history == ()
+
+
+def test_history_returns_previous_versions_with_constraints(tmp_path):
+    repository = PasswordProfileRepository(tmp_path)
+    repository.create(_profile(length=24, generation_version=1))
+    repository.bump(
+        "user",
+        "resource",
+        new_constraints=PasswordConstraints(
+            length=16,
+            upper=0,
+            lower=0,
+            digits=0,
+            specials=0,
+            mask=0,
+        ),
+    )
+
+    result = repository.history("user", "resource")
+
+    assert result.profile.generation_version == 2
+    assert result.profile.constraints.length == 16
+    assert len(result.history) == 1
+    entry = result.history[0]
+    assert entry.generation_version == 1
+    assert entry.constraints.length == 24
+    assert entry.created_at is not None
+
+
+def test_history_missing_profile_fails(tmp_path):
+    repository = PasswordProfileRepository(tmp_path)
+
+    with pytest.raises(ProfileNotFoundError):
+        repository.history("user", "resource")
+
+
 def test_bump_legacy_profile_without_created_at_does_not_crash(tmp_path):
     repository = PasswordProfileRepository(tmp_path)
     repository.create(_profile())

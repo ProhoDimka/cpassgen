@@ -117,6 +117,15 @@ def _resolve_create_constraints(
     return _prompt_constraints(DEFAULT_CONSTRAINTS)
 
 
+def _resolve_secret(config, secret: str | None) -> str:
+    resolved = secret
+    if resolved is None:
+        resolved = config.key_word
+    if resolved is None:
+        resolved = click.prompt("secret", hide_input=True)
+    return resolved
+
+
 def _offer_sync(repository, username: str, resource: str, action: str) -> None:
     try:
         prompt = "Sync changes with remote storage?"
@@ -343,11 +352,7 @@ def get_password(ctx, username: str, resource: str, secret: str):
     """Generate password from persisted profile and secret."""
     try:
         config = load_config(ctx.obj["config"])
-        resolved_secret = secret
-        if resolved_secret is None:
-            resolved_secret = config.key_word
-        if resolved_secret is None:
-            resolved_secret = click.prompt("secret", hide_input=True)
+        resolved_secret = _resolve_secret(config, secret)
         repository = load_repository_from_config(config)
         profile = repository.get(username, resource)
         request = models.PasswordGenerationRequest(
@@ -359,6 +364,92 @@ def get_password(ctx, username: str, resource: str, secret: str):
         click.echo(f"Error: {error}")
         raise SystemExit(1) from error
     click.echo(password)
+
+
+def _format_constraints(constraints: models.PasswordConstraints) -> str:
+    return (
+        f"length={constraints.length} upper={constraints.upper} "
+        f"lower={constraints.lower} digits={constraints.digits} "
+        f"specials={constraints.specials} mask={constraints.mask}"
+    )
+
+
+def _print_generation_line(
+    username: str,
+    resource: str,
+    generation_version: int,
+    constraints: models.PasswordConstraints,
+    created_at: str | None,
+    secret: str | None,
+    with_passwords: bool,
+    is_current: bool,
+) -> None:
+    tag = " (current)" if is_current else ""
+    created = created_at if created_at is not None else "-"
+    click.echo(
+        f"v{generation_version}  {created}  "
+        f"{_format_constraints(constraints)}{tag}"
+    )
+    if with_passwords:
+        profile = models.PasswordProfile(
+            username=username,
+            resource=resource,
+            constraints=constraints,
+            generation_version=generation_version,
+        )
+        request = models.PasswordGenerationRequest(
+            profile=profile,
+            secret=secret,
+        )
+        password = generate_password_from_request(request)
+        click.echo(f"  password: {password}")
+
+
+@cli.command("history")
+@click.option("--username", "-u", prompt=True)
+@click.option("--resource", "-r", prompt=True)
+@click.option("--secret", "-s", default=None)
+@click.option(
+    "--with-passwords",
+    is_flag=True,
+    default=False,
+    help="Include generated passwords for current and past generations.",
+)
+@click.pass_context
+def profile_history(
+    ctx,
+    username: str,
+    resource: str,
+    secret: str,
+    with_passwords: bool,
+):
+    """Show current constraints and version history for a profile."""
+    try:
+        config = load_config(ctx.obj["config"])
+        repository = load_repository_from_config(config)
+        history = repository.history(username, resource)
+        secret = _resolve_secret(config, secret) if with_passwords else None
+    except ValueError as error:
+        click.echo(f"Error: {error}")
+        raise SystemExit(1) from error
+
+    current = models.GenerationHistoryEntry(
+        generation_version=history.profile.generation_version,
+        constraints=history.profile.constraints,
+        created_at=history.created_at,
+    )
+    entries = [current] + list(reversed(history.history))
+    for index, entry in enumerate(entries):
+        _print_generation_line(
+            username=username,
+            resource=resource,
+            generation_version=entry.generation_version,
+            constraints=entry.constraints,
+            created_at=entry.created_at,
+            secret=secret,
+            with_passwords=with_passwords,
+            is_current=index == 0,
+        )
 
 
 if __name__ == "__main__":

@@ -146,6 +146,23 @@ List stored profiles (one line per profile: `username@resource v<version> <creat
 cpassgen list
 ```
 
+Show current generation constraints and version history for a profile:
+
+```bash
+cpassgen history \
+  --username user1 \
+  --resource example.com
+```
+
+Include the generated passwords for the current and past generations:
+
+```bash
+cpassgen history \
+  --username user1 \
+  --resource example.com \
+  --with-passwords
+```
+
 Sync profile storage with remote git repository:
 
 ```bash
@@ -164,6 +181,7 @@ Notes:
 - `create` fails if profile already exists
 - `bump` fails if profile does not exist
 - `get` fails if profile does not exist
+- `history` fails if profile does not exist
 - `list` prints `No profiles found` when the repository is empty
 - after successful `create` or `bump`, the tool prompts to sync changes with the remote repository (skipped in non-interactive mode)
 - `sync` commits uncommitted changes, pulls remote updates via rebase, pushes local changes; on conflict prints detailed resolution instructions
