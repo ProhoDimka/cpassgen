@@ -44,3 +44,21 @@ class PasswordGenerationRequest:
     @property
     def identity(self) -> Tuple[str, str]:
         return self.profile.identity
+
+
+@dataclass(frozen=True)
+class GenerationHistoryEntry:
+    """Single historical generation version with its constraints."""
+
+    generation_version: int
+    constraints: PasswordConstraints
+    created_at: str | None = None
+
+
+@dataclass(frozen=True)
+class ProfileHistory:
+    """Current profile plus the history of previous generations."""
+
+    profile: PasswordProfile
+    created_at: str | None
+    history: Tuple[GenerationHistoryEntry, ...] = ()

@@ -10,7 +10,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.config import PERSISTENCE_PATH_ENV, Config
-from app.models import PasswordConstraints, PasswordProfile
+from app.models import (
+    GenerationHistoryEntry,
+    PasswordConstraints,
+    PasswordProfile,
+    ProfileHistory,
+)
 from app.validators import validate_constraints
 
 
@@ -119,6 +124,28 @@ class PasswordProfileRepository:
             )
         raw_data = json.loads(path.read_text(encoding="utf-8"))
         return self._profile_from_raw(raw_data)
+
+    def history(self, username: str, resource: str) -> ProfileHistory:
+        path = self._profile_path(username, resource)
+        if not path.exists():
+            raise ProfileNotFoundError(
+                "PasswordProfile does not exist for given username/resource.",
+            )
+        raw_data = json.loads(path.read_text(encoding="utf-8"))
+        profile = self._profile_from_raw(raw_data)
+        history = tuple(
+            GenerationHistoryEntry(
+                generation_version=entry["generation_version"],
+                constraints=PasswordConstraints(**entry["constraints"]),
+                created_at=entry.get("created_at"),
+            )
+            for entry in raw_data.get("version_history", [])
+        )
+        return ProfileHistory(
+            profile=profile,
+            created_at=raw_data.get("created_at"),
+            history=history,
+        )
 
     def list_profiles(self) -> list[tuple[PasswordProfile, str | None]]:
         if not self._profiles_root.exists():

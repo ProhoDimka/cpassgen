@@ -626,6 +626,107 @@ def test_list_shows_profiles_with_version_and_created_at(tmp_path):
     assert "+00:00" in result.output
 
 
+def test_history_shows_current_and_past_generations(tmp_path):
+    runner = CliRunner()
+    env = {"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)}
+
+    runner.invoke(
+        cli,
+        args=["create", "--username", "user1", "--resource", "resource1"],
+        env=env,
+        input=CONSTRAINTS_PROMPT_INPUT,
+    )
+    runner.invoke(
+        cli,
+        args=[
+            "bump",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+            "--length",
+            "8",
+        ],
+        env=env,
+    )
+
+    result = runner.invoke(
+        cli,
+        args=["history", "--username", "user1", "--resource", "resource1"],
+        env=env,
+    )
+
+    assert result.exit_code == 0
+    assert "v2" in result.output
+    assert "v1" in result.output
+    assert "(current)" in result.output
+    assert "length=8" in result.output
+    assert "length=24" in result.output
+    assert "password:" not in result.output
+
+
+def test_history_with_passwords_generates_passwords(tmp_path):
+    runner = CliRunner()
+    env = {"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)}
+
+    runner.invoke(
+        cli,
+        args=["create", "--username", "user1", "--resource", "resource1"],
+        env=env,
+        input=CONSTRAINTS_PROMPT_INPUT,
+    )
+    runner.invoke(
+        cli,
+        args=[
+            "bump",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+            "--length",
+            "8",
+        ],
+        env=env,
+    )
+
+    result = runner.invoke(
+        cli,
+        args=[
+            "history",
+            "--username",
+            "user1",
+            "--resource",
+            "resource1",
+            "--with-passwords",
+            "--secret",
+            "secret1",
+        ],
+        env=env,
+    )
+
+    assert result.exit_code == 0
+    password_lines = [
+        line.strip()
+        for line in result.output.splitlines()
+        if "password:" in line
+    ]
+    assert len(password_lines) == 2
+    assert len(password_lines[0].split("password: ")[1]) == 8
+    assert len(password_lines[1].split("password: ")[1]) == 24
+
+
+def test_history_missing_profile_fails(tmp_path):
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        args=["history", "--username", "user1", "--resource", "resource1"],
+        env={"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)},
+    )
+
+    assert result.exit_code == 1
+    assert "does not exist" in result.output
+
+
 def test_get_config_prints_non_secret_values(tmp_path):
     runner = CliRunner()
     config_file = tmp_path / "config.json"
