@@ -2,7 +2,7 @@
 name = "cpassgen"
 version = "0.1.0"
 description = "CLI утилита управления паролями"
-authors = ["prohodimka.pro <you@example.com>"]
+authors = ["Dmitry Potamoshnev <proho@dimka.pro"]
 packages = [{include = "app"}]
 
 [tool.poetry.scripts]
