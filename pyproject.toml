@@ -1,18 +1,38 @@
-[tool.poetry]
-name = "cpassgen"
-version = "0.1.0"
-description = "CLI утилита управления паролями"
-authors = ["Dmitry Potamoshnev <proho@dimka.pro"]
-packages = [{include = "app"}]
+[project]
+name = "cpassgen_dev.dimka.pro"
+dynamic = ["version"]
+description = "Deterministic password generator and profile manager for CLI workflows."
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{name = "Dmitry Potamoshnev", email = "dmitriy.potamoshnev@gmail.com"}]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "Apache-2.0"
+license-files = ["LICEN[CS]E*"]
+dependencies = [
+    "click>=8.0",
+]
 
-[tool.poetry.scripts]
+[project.urls]
+Homepage = "https://github.com/ProhoDimka/cpassgen"
+Issues = "https://github.com/ProhoDimka/cpassgen/issues"
+
+[project.scripts]
 cpassgen = "app.main:cli"
 
-[tool.poetry.dependencies]
-python = "^3.12"
-click = "^8.0"
+[tool.poetry]
+packages = [{include = "app"}]
+version = "0.0.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.requires-plugins]
+poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
+
+[tool.poetry-dynamic-versioning]
+enable = true
+
+[tool.poetry.group.dev.dependencies]
 pytest = "^7.0"
 pytest-cov = "^4.0"
 black = "^26.5"
@@ -20,8 +40,8 @@ isort = "^8.0"
 flake8 = "^7.3"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
 
 [tool.black]
 line-length = 79
