@@ -3,7 +3,7 @@ name = "cpassgen_dev.dimka.pro"
 dynamic = ["version"]
 description = "Deterministic password generator and profile manager for CLI workflows."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<4.0"
 authors = [{name = "Dmitry Potamoshnev", email = "dmitriy.potamoshnev@gmail.com"}]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -33,11 +33,13 @@ poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
 enable = true
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.0"
+pytest = "^9.0.3"
 pytest-cov = "^4.0"
 black = "^26.5"
 isort = "^8.0"
 flake8 = "^7.3"
+bandit = "^1.8"
+pip-audit = "^2.9"
 
 [build-system]
 requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
@@ -45,3 +47,11 @@ build-backend = "poetry_dynamic_versioning.backend"
 
 [tool.black]
 line-length = 79
+target-version = ["py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 79
+
+[tool.bandit]
+exclude_dirs = [".venv", ".poetry", ".git", "tests"]
