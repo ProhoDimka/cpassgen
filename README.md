@@ -1,4 +1,4 @@
-# cpassgen
+# CPassGen
 
 Deterministic password generator and profile manager for CLI workflows.
 
