@@ -101,6 +101,12 @@ Run CLI:
 cpassgen --help
 ```
 
+Show the installed package version:
+
+```bash
+cpassgen --version
+```
+
 Create profile:
 
 ```bash

@@ -74,6 +74,14 @@ def _setup_git_repo_with_remote(tmp_path, branch="main"):
     return local
 
 
+def test_version_flag_prints_version():
+    runner = CliRunner()
+    result = runner.invoke(cli, args=["--version"])
+
+    assert result.exit_code == 0
+    assert "cpassgen, version" in result.output
+
+
 def test_create_then_get_password_consistency_default_cli(tmp_path):
     runner = CliRunner()
     env = {"PASS_GEN_GIT_PERSISTENCE_PATH": str(tmp_path)}

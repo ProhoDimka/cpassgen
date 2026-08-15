@@ -1,3 +1,4 @@
+import importlib.metadata
 import json
 
 import click
@@ -145,6 +146,14 @@ def _offer_sync(repository, username: str, resource: str, action: str) -> None:
         click.echo(f"Sync skipped: {exc}", err=True)
 
 
+def _package_version() -> str:
+    try:
+        return importlib.metadata.version("cpassgen_dev.dimka.pro")
+    except importlib.metadata.PackageNotFoundError:
+        return "0.0.0"
+
+
+@click.version_option(_package_version(), prog_name="cpassgen")
 @click.group()
 @click.option(
     "--config",
