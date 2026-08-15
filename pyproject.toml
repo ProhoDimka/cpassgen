@@ -1,7 +1,7 @@
 [project]
 name = "cpassgen_dev.dimka.pro"
 dynamic = ["version"]
-description = "CLI - determenistic password generator with secret, generation versionning and persistance."
+description = "CLI - deterministic password generator with secret, generation versionning and persistance."
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [{name = "Dmitry Potamoshnev", email = "dmitriy.potamoshnev@gmail.com"}]
