@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import subprocess
+import subprocess  # nosec B404
 from pathlib import Path
 
 
@@ -22,7 +22,7 @@ class SyncService:
         self._ensure_git_repo()
 
     def _git(self, *args: str, check: bool = True):
-        return subprocess.run(
+        return subprocess.run(  # nosec B603 B607
             ["git", *args],
             cwd=self._repo,
             capture_output=True,
